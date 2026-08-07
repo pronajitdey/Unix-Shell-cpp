@@ -11,7 +11,7 @@
 
 namespace fs = std::filesystem;
 
-bool isFileExecutable(fs::path &file_path);
+bool isFileExecutable(const fs::path &file_path);
 
 int main() {
   // Flush after every std::cout / std:cerr
