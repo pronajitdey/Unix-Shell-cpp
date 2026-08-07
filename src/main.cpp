@@ -52,6 +52,7 @@ int main() {
 
         if (env_path != NULL) {
           std::string env_path_string(env_path);
+          
           while (env_path_string.find(PATH_SEPARATOR) != std::string::npos) {
             size_t separator_index = env_path_string.find(PATH_SEPARATOR);
             std::string search_dir = env_path_string.substr(0, separator_index);
