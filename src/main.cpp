@@ -28,7 +28,7 @@ int main() {
     if (command == "exit") break;
     else if (command == "echo") {
       std::cout << arguments << std::endl;
-    } else if (command == "type ") {
+    } else if (command == "type") {
       if (arguments == "echo" || arguments == "exit" || arguments == "type") {
         std::cout << arguments << " is a shell builtin" << std::endl;
       } else {
