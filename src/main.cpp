@@ -52,7 +52,7 @@ int main() {
 
         if (env_path != NULL) {
           std::string env_path_string(env_path);
-          
+
           while (env_path_string.find(PATH_SEPARATOR) != std::string::npos) {
             size_t separator_index = env_path_string.find(PATH_SEPARATOR);
             std::string search_dir = env_path_string.substr(0, separator_index);
@@ -84,6 +84,8 @@ int main() {
           std::cout << arguments << ": not found" << std::endl;
         }
       }
+    } else if (isFileExecutable(command)) {   // Run an executable program
+      std::system(command.c_str());
     } else {
       std::cout << command << ": command not found" << std::endl;
     }
@@ -91,7 +93,7 @@ int main() {
 }
 
 // check whether a file is executable or not
-bool isFileExecutable(fs::path &file_path) {
+bool isFileExecutable(const fs::path &file_path) {
   if (fs::exists(file_path)) {
     fs::file_status status = fs::status(file_path);
     fs::perms permissions = status.permissions();
