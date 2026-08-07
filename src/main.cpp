@@ -11,6 +11,8 @@
 
 namespace fs = std::filesystem;
 
+bool isFileExecutable(fs::path &file_path);
+
 int main() {
   // Flush after every std::cout / std:cerr
   std::cout << std::unitbuf;
@@ -55,21 +57,10 @@ int main() {
             std::string search_dir = env_path_string.substr(0, separator_index);
             fs::path file_path = search_dir + "/" + arguments;
 
-            if (fs::exists(file_path)) {  // check whether file exists
-              fs::file_status status = fs::status(file_path);
-              fs::perms permissions = status.permissions();
-
-              // whether file has execute permission
-              bool executable = 
-                (permissions & (fs::perms::owner_exec
-                                | fs::perms::group_exec
-                                | fs::perms::others_exec))
-                != fs::perms::none;
-              if (executable) {
-                file_is_executable = true;
-                std::cout << arguments << " is " << file_path.string() << std::endl;
-                break;
-              }
+            if (isFileExecutable(file_path)) {
+              file_is_executable = true;
+              std::cout << arguments << " is " << file_path.string() << std::endl;
+              break;
             }
 
             env_path_string = env_path_string.substr(separator_index + 1);
@@ -79,32 +70,33 @@ int main() {
           if (!file_is_executable) {            
             std::string search_dir = env_path_string;
             fs::path file_path = search_dir + "/" + arguments;
-            
-            if (fs::exists(file_path)) {
-              fs::file_status status = fs::status(file_path);
-              fs::perms permissions = status.permissions();
-              
-              bool executable = (permissions & fs::perms::owner_exec) != fs::perms::none;
-              if (executable) {
-                file_is_executable = true;
-                std::cout << arguments << " is " << file_path.string() << std::endl;
-              } else {
-                std::cout << arguments << ": not found" << std::endl;
-              }
+
+            if (isFileExecutable(file_path)) {
+              file_is_executable = true;
+              std::cout << arguments << " is " << file_path.string() << std::endl;
             } else {
               std::cout << arguments << ": not found" << std::endl;
             }
           }
 
-        } else {
+        } else {    // PATH environment not found
           std::cout << arguments << ": not found" << std::endl;
         }
       }
-
     } else {
       std::cout << command << ": command not found" << std::endl;
     }
   }
 }
 
-
+// check whether a file is executable or not
+bool isFileExecutable(fs::path &file_path) {
+  if (fs::exists(file_path)) {
+    fs::file_status status = fs::status(file_path);
+    fs::perms permissions = status.permissions();
+    
+    bool executable = (permissions & fs::perms::owner_exec) != fs::perms::none;
+    return executable;
+  }
+  return false;
+}
