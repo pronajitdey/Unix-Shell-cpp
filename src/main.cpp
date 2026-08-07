@@ -50,9 +50,8 @@ int main() {
 
         if (env_path != NULL) {
           std::string env_path_string(env_path);
-          size_t separator_index = -1;
           while (env_path_string.find(PATH_SEPARATOR) != std::string::npos) {
-            separator_index = env_path_string.find(PATH_SEPARATOR);
+            size_t separator_index = env_path_string.find(PATH_SEPARATOR);
             std::string search_dir = env_path_string.substr(0, separator_index);
             fs::path file_path = search_dir + "/" + arguments;
 
@@ -61,10 +60,14 @@ int main() {
               fs::perms permissions = status.permissions();
 
               // whether file has execute permission
-              bool executable = (permissions & fs::perms::owner_exec) != fs::perms::none;
+              bool executable = 
+                (permissions & (fs::perms::owner_exec
+                                | fs::perms::group_exec
+                                | fs::perms::others_exec))
+                != fs::perms::none;
               if (executable) {
                 file_is_executable = true;
-                std::cout << arguments << " is " << file_path << std::endl;
+                std::cout << arguments << " is " << file_path.string() << std::endl;
                 break;
               }
             }
@@ -74,7 +77,7 @@ int main() {
 
           // last path in the PATH environment (no PATH SEPARATOR after it)
           if (!file_is_executable) {            
-            std::string search_dir = env_path_string.substr(separator_index + 1);
+            std::string search_dir = env_path_string;
             fs::path file_path = search_dir + "/" + arguments;
             
             if (fs::exists(file_path)) {
@@ -84,7 +87,7 @@ int main() {
               bool executable = (permissions & fs::perms::owner_exec) != fs::perms::none;
               if (executable) {
                 file_is_executable = true;
-                std::cout << arguments << " is " << file_path << std::endl;
+                std::cout << arguments << " is " << file_path.string() << std::endl;
               } else {
                 std::cout << arguments << ": not found" << std::endl;
               }
