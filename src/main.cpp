@@ -53,7 +53,7 @@ int main() {
           size_t separator_index = -1;
           while (env_path_string.find(PATH_SEPARATOR) != std::string::npos) {
             separator_index = env_path_string.find(PATH_SEPARATOR);
-            std::string search_dir = env_path_string.substr(separator_index);
+            std::string search_dir = env_path_string.substr(0, separator_index);
             fs::path file_path = search_dir + "/" + arguments;
 
             if (fs::exists(file_path)) {  // check whether file exists
