@@ -11,6 +11,7 @@
 
 namespace fs = std::filesystem;
 
+fs::path findExecutableFilePath(const char* env_path, std::string file);
 bool isFileExecutable(const fs::path &file_path);
 
 int main() {
@@ -51,45 +52,56 @@ int main() {
         bool file_is_executable = false;
 
         if (env_path != NULL) {
-          std::string env_path_string(env_path);
+          fs::path file_path = findExecutableFilePath(env_path, arguments);
 
-          while (env_path_string.find(PATH_SEPARATOR) != std::string::npos) {
-            size_t separator_index = env_path_string.find(PATH_SEPARATOR);
-            std::string search_dir = env_path_string.substr(0, separator_index);
-            fs::path file_path = search_dir + "/" + arguments;
-
-            if (isFileExecutable(file_path)) {
-              file_is_executable = true;
-              std::cout << arguments << " is " << file_path.string() << std::endl;
-              break;
-            }
-
-            env_path_string = env_path_string.substr(separator_index + 1);
-          }
-
-          // last path in the PATH environment (no PATH SEPARATOR after it)
-          if (!file_is_executable) {            
-            std::string search_dir = env_path_string;
-            fs::path file_path = search_dir + "/" + arguments;
-
-            if (isFileExecutable(file_path)) {
-              file_is_executable = true;
-              std::cout << arguments << " is " << file_path.string() << std::endl;
-            } else {
-              std::cout << arguments << ": not found" << std::endl;
-            }
+          if (!file_path.empty()) {
+            std::cout << arguments << " is " << file_path.string() << std::endl;
+          } else {
+            std::cout << arguments << ": not found" << std::endl;
           }
 
         } else {    // PATH environment not found
           std::cout << arguments << ": not found" << std::endl;
         }
       }
-    } else if (isFileExecutable(command)) {   // Run an executable program
-      std::system(command.c_str());
+      
     } else {
-      std::cout << command << ": command not found" << std::endl;
+      fs::path command_path = findExecutableFilePath(env_path, command);
+
+      if (!command_path.empty()) {  // Run an executable program
+        std::system(input.c_str());
+      } else {
+        std::cout << command << ": command not found" << std::endl;
+      }
     }
   }
+}
+
+// find path of file from PATH environment
+fs::path findExecutableFilePath(const char* env_path, std::string file) {
+  std::string env_path_string(env_path);
+
+  while (env_path_string.find(PATH_SEPARATOR) != std::string::npos) {
+    size_t separator_index = env_path_string.find(PATH_SEPARATOR);
+    std::string search_dir = env_path_string.substr(0, separator_index);
+    fs::path file_path = search_dir + "/" + file;
+
+    if (isFileExecutable(file_path)) {
+      return file_path;
+    }
+
+    env_path_string = env_path_string.substr(separator_index + 1);
+  }
+
+  // last path in the PATH environment (no PATH SEPARATOR after it)           
+  std::string search_dir = env_path_string;
+  fs::path file_path = search_dir + "/" + file;
+
+  if (isFileExecutable(file_path)) {
+    return file_path;
+  }
+
+  return fs::path{};
 }
 
 // check whether a file is executable or not
