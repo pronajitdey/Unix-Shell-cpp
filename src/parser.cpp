@@ -45,6 +45,17 @@ static std::vector<std::string> tokenize(const std::string& input) {
       continue;
     }
 
+    if (c == '\\') {
+      // Outside quotes, backlash escapes the next character
+      inToken = true;
+      i++;  // skip the backlash
+      if (i < n) {
+        current += input[i];
+        i++;
+      }
+      continue;
+    }
+
     inToken = true;
     current += c;
     i++;
