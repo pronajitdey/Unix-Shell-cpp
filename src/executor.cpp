@@ -54,7 +54,7 @@ static void runExternal(const Command& cmd) {
 
   if (pid == 0) {
     std::vector<char*> argv;
-    argv.push_back(const_cast<char*>(cmd.args[0].c_str()));
+    argv.push_back(const_cast<char*>(cmd.name.c_str()));
     for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
     argv.push_back(nullptr);
 
