@@ -33,6 +33,18 @@ static std::vector<std::string> tokenize(const std::string& input) {
       continue;
     }
 
+    if (c == '"') {
+      inToken = true;
+      i++;
+      while (i < n && input[i] != '"') {
+        // TODO: special handling of \ or $
+        current += input[i];
+        i++;
+      }
+      if (i < n) i++;
+      continue;
+    }
+
     inToken = true;
     current += c;
     i++;
