@@ -74,15 +74,25 @@ static void runExternal(const Command& cmd) {
 }
 
 // run pwd builtin command
-static void runPwd(const Command& cmd) {
+static void runPwd() {
   std::cout << fs::current_path().string() << std::endl;
 }
 
 static void runCd(const Command& cmd) {
-  if (fs::exists(cmd.args[0])) {
-    fs::current_path(cmd.args[0]);
-  } else {
-    std::cout << cmd.args[0] << ": No such file or directory" << std::endl;
+  if (cmd.args.empty()) {
+    return;   // actually should go to HOME: TODO
+  }
+
+  const std::string& target = cmd.args[0];
+  if (!fs::exists(target) || !fs::is_directory(target)) {
+    std::cout << "cd: " << target << ": No such file or directory" << std::endl;
+    return;
+  }
+
+  try {
+    fs::current_path(target);
+  } catch (const fs::filesystem_error&) {
+    std::cout << "cd: " << target << ": No such file or directory" << std::endl;
   }
 }
 
@@ -101,7 +111,7 @@ bool executeCommand(const Command& cmd) {
   }
 
   if (cmd.name == "pwd") {
-    runPwd(cmd);
+    runPwd();
     return true;
   }
 
