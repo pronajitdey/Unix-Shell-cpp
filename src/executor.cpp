@@ -83,7 +83,13 @@ static void runCd(const Command& cmd) {
     return;   // actually should go to HOME: TODO
   }
 
-  const std::string& target = cmd.args[0];
+  std::string target = cmd.args[0];
+
+  if (target == "~") {
+    const char* home_env = getenv("HOME");
+    if (home_env) target = home_env;
+  }
+
   if (!fs::exists(target) || !fs::is_directory(target)) {
     std::cout << "cd: " << target << ": No such file or directory" << std::endl;
     return;
