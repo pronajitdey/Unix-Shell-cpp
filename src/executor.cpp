@@ -20,7 +20,11 @@ static void runType(const Command& cmd) {
   if (cmd.args.empty()) return;
   const std::string& target = cmd.args[0];
 
-  if (target == "echo" || target == "exit" || target == "type" || target == "pwd") {    // check builtin commands
+  if (target == "echo" 
+      || target == "exit" 
+      || target == "type" 
+      || target == "pwd"
+      || target == "cd") {    // check builtin commands
     std::cout << target << " is a shell builtin" << std::endl;
     return;
   }
@@ -74,6 +78,14 @@ static void runPwd(const Command& cmd) {
   std::cout << fs::current_path().string() << std::endl;
 }
 
+static void runCd(const Command& cmd) {
+  if (fs::exists(cmd.args[0])) {
+    fs::current_path(cmd.args[0]);
+  } else {
+    std::cout << cmd.args[0] << ": No such file or directory" << std::endl;
+  }
+}
+
 bool executeCommand(const Command& cmd) {
   if (cmd.name.empty()) {
     return true;  // empty input, just reprompt
@@ -90,6 +102,11 @@ bool executeCommand(const Command& cmd) {
 
   if (cmd.name == "pwd") {
     runPwd(cmd);
+    return true;
+  }
+
+  if (cmd.name == "cd") {
+    runCd(cmd);
     return true;
   }
 
