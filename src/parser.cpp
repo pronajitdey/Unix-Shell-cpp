@@ -88,9 +88,28 @@ Command parseCommand(const std::string& input) {
   // }
   std::vector<std::string> tokens = tokenize(input);
 
-  if (!tokens.empty()) {
-    cmd.name = tokens[0];
-    cmd.args.assign(tokens.begin() + 1, tokens.end());
+  if (tokens.empty()) return cmd;
+
+  // strip redirection tokens out of token stream
+  std::vector<std::string> filtered;
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    const std::string& tok = tokens[i];
+
+    if (tok == ">" || tok == "1>") {
+      if (i + 1 < tokens.size()) {
+        cmd.stdout_redirect = tokens[i + 1];
+        i++;
+      }
+      continue;
+    }
+
+    filtered.push_back(tok);
+  }
+
+  if (!filtered.empty()) {
+    cmd.name = filtered[0];
+    cmd.args.assign(filtered.begin() + 1, filtered.end());
   }
 
   return cmd;

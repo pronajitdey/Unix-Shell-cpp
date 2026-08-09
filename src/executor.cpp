@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fstream>
+#include <fcntl.h>
 
 // handle echo command
 static void runEcho(const Command& cmd) {
@@ -57,11 +59,24 @@ static void runExternal(const Command& cmd) {
   }
 
   if (pid == 0) {
+    if (!cmd.stdout_redirect.empty()) {
+      int fd = open(cmd.stdout_redirect.c_str(),
+                    O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if (fd < 0) {
+        perror("open");
+        _exit(1);
+      }
+      // only child's file descriptor is changed
+      dup2(fd, STDOUT_FILENO);
+      close(fd);
+    }
+
     std::vector<char*> argv;
     argv.push_back(const_cast<char*>(cmd.name.c_str()));
     for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
     argv.push_back(nullptr);
 
+    // new program inherits the child's file descriptors
     execvp(cmd.name.c_str(), argv.data());
 
     // only reached if execvp fails
@@ -111,26 +126,44 @@ bool executeCommand(const Command& cmd) {
     return false;
   }
 
+  // Builtins write through std::cout
+  // redirect by swapping stream buffer and then restoring it
+  std::ofstream outFile;
+  std::streambuf* origCoutBuf = nullptr;
+
+  if (!cmd.stdout_redirect.empty() &&
+      (cmd.name == "echo" || cmd.name == "pwd" || cmd.name == "type" || cmd.name == "cd")) {
+
+    outFile.open(cmd.stdout_redirect, std::ios::trunc);
+    if (outFile.is_open()) {
+      // changes cout's buffer to file's buffer and returns old buffer
+      origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
+    }
+  }
+
+  bool result = true;
+
   if (cmd.name == "echo") {
     runEcho(cmd);
-    return true;
   }
 
   if (cmd.name == "pwd") {
     runPwd();
-    return true;
   }
 
   if (cmd.name == "cd") {
     runCd(cmd);
-    return true;
   }
 
   if (cmd.name == "type") {
     runType(cmd);
-    return true;
   }
 
   runExternal(cmd);
-  return true;
+
+  if (origCoutBuf) {
+    std::cout.rdbuf(origCoutBuf);   // restore terminal output
+  }
+
+  return result;
 }
