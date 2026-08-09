@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <algorithm>
 
 #ifdef _WIN32
   const char PATH_SEPARATOR = ';';
@@ -72,6 +73,7 @@ static std::vector<std::string> collectCandidates(const std::string& prefix) {
     }
   }
 
+  std::sort(results.begin(), results.end());
   return results;
 }
 
