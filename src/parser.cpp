@@ -104,9 +104,27 @@ Command parseCommand(const std::string& input) {
       continue;
     }
 
+    if (tok == ">>" || tok == "1>>") {
+      if (i + 1 < tokens.size()) {
+        cmd.stdout_redirect = tokens[i + 1];
+        cmd.stdout_append = true;
+        i++;
+      }
+      continue;
+    }
+
     if (tok == "2>") {
       if (i + 1 < tokens.size()) {
         cmd.stderr_redirect = tokens[i + 1];
+        i++;
+      }
+      continue;
+    }
+
+    if (tok == "2>>") {
+      if (i + 1 < tokens.size()) {
+        cmd.stderr_redirect = tokens[i + 1];
+        cmd.stderr_append = true;
         i++;
       }
       continue;

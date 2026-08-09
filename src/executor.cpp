@@ -60,8 +60,9 @@ static void runExternal(const Command& cmd) {
 
   if (pid == 0) {
     if (!cmd.stdout_redirect.empty()) {
-      int fd = open(cmd.stdout_redirect.c_str(),
-                    O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      int flags = O_WRONLY | O_CREAT | (cmd.stdout_append ? O_APPEND : O_TRUNC);
+      int fd = open(cmd.stdout_redirect.c_str(), flags, 0644);
+
       if (fd < 0) {
         perror("open");
         _exit(1);
@@ -72,8 +73,9 @@ static void runExternal(const Command& cmd) {
     }
 
     if (!cmd.stderr_redirect.empty()) {
-      int fd = open(cmd.stderr_redirect.c_str(),
-                    O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+      int fd = open(cmd.stderr_redirect.c_str(), flags, 0644);
+
       if (fd < 0) { 
         perror("open"); 
         _exit(1); 
@@ -150,14 +152,16 @@ bool executeCommand(const Command& cmd) {
   if (isBuiltinCmd) {
 
     if (!cmd.stdout_redirect.empty()) {
-      outFile.open(cmd.stdout_redirect, std::ios::trunc);
+      auto mode = cmd.stdout_append ? std::ios::app : std::ios::trunc;
+      outFile.open(cmd.stdout_redirect, mode);
       if (outFile.is_open()) {
         // changes cout's buffer to file's buffer and returns old buffer
         origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
       }
     }
     if (!cmd.stderr_redirect.empty()) {
-      errFile.open(cmd.stderr_redirect, std::ios::trunc);
+      auto mode = cmd.stderr_append ? std::ios::app : std::ios::trunc;
+      errFile.open(cmd.stderr_redirect, mode);
       if (errFile.is_open()) {
         // changes cerr's buffer to file's buffer and returns old buffer
         origCerrBuf = std::cerr.rdbuf(errFile.rdbuf());
