@@ -104,6 +104,14 @@ Command parseCommand(const std::string& input) {
       continue;
     }
 
+    if (tok == "2>") {
+      if (i + 1 < tokens.size()) {
+        cmd.stderr_redirect = tokens[i + 1];
+        i++;
+      }
+      continue;
+    }
+
     filtered.push_back(tok);
   }
 

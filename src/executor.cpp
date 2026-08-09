@@ -71,6 +71,18 @@ static void runExternal(const Command& cmd) {
       close(fd);
     }
 
+    if (!cmd.stderr_redirect.empty()) {
+      int fd = open(cmd.stderr_redirect.c_str(),
+                    O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if (fd < 0) { 
+        perror("open"); 
+        _exit(1); 
+      }
+
+      dup2(fd, STDERR_FILENO);
+      close(fd);
+    }
+
     std::vector<char*> argv;
     argv.push_back(const_cast<char*>(cmd.name.c_str()));
     for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
@@ -126,18 +138,30 @@ bool executeCommand(const Command& cmd) {
     return false;
   }
 
+  bool isBuiltinCmd = (cmd.name == "echo" || cmd.name == "pwd" ||
+                       cmd.name == "type" || cmd.name == "cd");
+
   // Builtins write through std::cout
   // redirect by swapping stream buffer and then restoring it
-  std::ofstream outFile;
+  std::ofstream outFile, errFile;
   std::streambuf* origCoutBuf = nullptr;
+  std::streambuf* origCerrBuf = nullptr;
 
-  if (!cmd.stdout_redirect.empty() &&
-      (cmd.name == "echo" || cmd.name == "pwd" || cmd.name == "type" || cmd.name == "cd")) {
+  if (isBuiltinCmd) {
 
-    outFile.open(cmd.stdout_redirect, std::ios::trunc);
-    if (outFile.is_open()) {
-      // changes cout's buffer to file's buffer and returns old buffer
-      origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
+    if (!cmd.stdout_redirect.empty()) {
+      outFile.open(cmd.stdout_redirect, std::ios::trunc);
+      if (outFile.is_open()) {
+        // changes cout's buffer to file's buffer and returns old buffer
+        origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
+      }
+    }
+    if (!cmd.stderr_redirect.empty()) {
+      errFile.open(cmd.stderr_redirect, std::ios::trunc);
+      if (errFile.is_open()) {
+        // changes cerr's buffer to file's buffer and returns old buffer
+        origCerrBuf = std::cerr.rdbuf(errFile.rdbuf());
+      }
     }
   }
 
@@ -157,6 +181,9 @@ bool executeCommand(const Command& cmd) {
 
   if (origCoutBuf) {
     std::cout.rdbuf(origCoutBuf);   // restore terminal output
+  }
+  if (origCerrBuf) {
+    std::cerr.rdbuf(origCerrBuf);
   }
 
   return result;
