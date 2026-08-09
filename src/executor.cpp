@@ -145,21 +145,15 @@ bool executeCommand(const Command& cmd) {
 
   if (cmd.name == "echo") {
     runEcho(cmd);
-  }
-
-  if (cmd.name == "pwd") {
+  } else if (cmd.name == "pwd") {
     runPwd();
-  }
-
-  if (cmd.name == "cd") {
+  } else if (cmd.name == "cd") {
     runCd(cmd);
-  }
-
-  if (cmd.name == "type") {
+  } else if (cmd.name == "type") {
     runType(cmd);
+  } else { 
+    runExternal(cmd);
   }
-
-  runExternal(cmd);
 
   if (origCoutBuf) {
     std::cout.rdbuf(origCoutBuf);   // restore terminal output
