@@ -90,6 +90,12 @@ Command parseCommand(const std::string& input) {
 
   if (tokens.empty()) return cmd;
 
+  // Detect and strip a trailing '&' before redirection parsing
+  if (tokens.back() == "&") {
+    cmd.background = true;
+    tokens.pop_back();
+  }
+
   // strip redirection tokens out of token stream
   std::vector<std::string> filtered;
 

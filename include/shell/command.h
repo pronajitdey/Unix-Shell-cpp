@@ -11,4 +11,6 @@ struct Command {
 
   std::string stderr_redirect;  // empty if no redirection
   bool stderr_append = false;   // true for 2>>
+
+  bool background = false;  // true if line ends with '&
 };

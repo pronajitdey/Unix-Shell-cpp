@@ -1,6 +1,7 @@
 #include "shell/executor.h"
 #include "shell/path_utils.h"
 #include "shell/completion_registry.h"
+#include "shell/job_manager.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -9,6 +10,16 @@
 #include <fstream>
 #include <fcntl.h>
 #include <unordered_map>
+
+// Helper to reconstruct a readable command line for job registration
+// (not used for execution — just for future `jobs` listing/display).
+static std::string reconstructCommandLine(const Command& cmd) {
+    std::string line = cmd.name;
+    for (const auto& arg : cmd.args) {
+        line += " " + arg;
+    }
+    return line;
+}
 
 // handle echo command
 static void runEcho(const Command& cmd) {
@@ -100,6 +111,13 @@ static void runExternal(const Command& cmd) {
     // only reached if execvp fails
     perror("execvp");
     _exit(127);   // 127 for command not found (in shell scripts)
+  }
+
+  // Parent process
+  if (cmd.background) {
+    int jobNumber = registerBackgroundJob(pid, reconstructCommandLine(cmd));
+    std::cout << "[" << jobNumber << "] " << pid << std::endl;
+    // Deliberately no waitpid() here — that's what makes it non-blocking.
   } else {
     int status;
     waitpid(pid, &status, 0);
