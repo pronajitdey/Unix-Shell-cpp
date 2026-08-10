@@ -22,12 +22,13 @@ static const std::vector<std::string> BUILTIN_NAMES = {
   "echo", "exit"
 };
 
+// command-name completion (builtins + PATH executables)
 // Scans $PATH once and returns the set of all matching candidate names
 // (builtins + every executable file found across PATH directories).
 // Rebuilding on every TAB press is intentional for now — it guarantees
 // freshness if PATH or the filesystem changes mid-session; if this ever
 // feels slow, cache it and invalidate on demand.
-static std::vector<std::string> collectCandidates(const std::string& prefix) {
+static std::vector<std::string> collectCommandCandidates(const std::string& prefix) {
   std::unordered_set<std::string> unique; // de-dupe builtin vs PATH overlap
   std::vector<std::string> results;
 
@@ -77,12 +78,32 @@ static std::vector<std::string> collectCandidates(const std::string& prefix) {
   return results;
 }
 
-static char* candidateGenerator(const char* text, int state) {
+// filename completion (in current directory)
+static std::vector<std::string> collectFileCandidates(const std::string& prefix) {
+  std::vector<std::string> results;
+
+  std::error_code ec;
+  for (const auto& entry : fs::directory_iterator(fs::current_path(), ec)) {
+    if (ec) break;
+
+    const std::string filename = entry.path().filename().string();
+
+    if (filename.compare(0, prefix.length(), prefix) == 0) {
+      results.push_back(filename);
+    }
+  }
+
+  std::sort(results.begin(), results.end());
+  return results;
+}
+
+// both generators share this, decided by shellCompletion based on cursor position (start == 0 or not)
+static char* makeGenerator(const char* text, int state, std::vector<std::string> (*collector)(const std::string&)) {
   static std::vector<std::string> matches;
   static size_t index;
 
   if (state == 0) {
-    matches = collectCandidates(text);
+    matches = collector(text);
     index = 0;
   }
 
@@ -93,16 +114,42 @@ static char* candidateGenerator(const char* text, int state) {
   return nullptr;
 }
 
+// static char* candidateGenerator(const char* text, int state) {
+//   static std::vector<std::string> matches;
+//   static size_t index;
+
+//   if (state == 0) {
+//     matches = collectCommandCandidates(text);
+//     index = 0;
+//   }
+
+//   if (index < matches.size()) {
+//     return strdup(matches[index++].c_str());
+//   }
+
+//   return nullptr;
+// }
+
+static char* commandGenerator(const char* text, int state) {
+  return makeGenerator(text, state, collectCommandCandidates);
+}
+
+static char* filenameGenerator(const char* text, int state) {
+  return makeGenerator(text, state, collectFileCandidates);
+}
+
+// readline parses word boundaries itself using its default word-break characters
+// which includes space (so extracts text after the last space)
 static char** shellCompletion(const char* text, int start, int end) {
     (void)end;
 
   rl_attempted_completion_over = 1;
 
   if (start != 0) {
-    return nullptr;
+    return rl_completion_matches(text, filenameGenerator);
   }
 
-  return rl_completion_matches(text, candidateGenerator);
+  return rl_completion_matches(text, commandGenerator);
 }
 
 void initCompletion() {
