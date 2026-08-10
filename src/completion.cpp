@@ -1,5 +1,6 @@
 #include "shell/completion.h"
 #include "shell/path_utils.h"
+#include "shell/completion_registry.h"
 
 #include <readline/readline.h>
 #include <cstring>
@@ -10,6 +11,9 @@
 #include <unordered_set>
 #include <algorithm>
 #include <iostream>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sstream>
 
 #ifdef _WIN32
   const char PATH_SEPARATOR = ';';
@@ -20,7 +24,7 @@
 namespace fs = std::filesystem;
 
 static const std::vector<std::string> BUILTIN_NAMES = {
-  "echo", "exit"
+  "echo", "exit", "completion"
 };
 
 // command-name completion (builtins + PATH executables)
@@ -122,6 +126,80 @@ static std::vector<std::string> collectFilenameCandidates(const std::string& tex
   return results;
 }
 
+// Registered completer scripts
+// Runs `scriptPath` as a child process with no arguments (this stage
+// doesn't pass completion context yet), captures its stdout via a pipe,
+// and splits it into lines. Blocks until the child exits, so output is
+// always complete before we read it.
+static std::vector<std::string> runCompleterScript(const std::string& script_path) {
+  std::vector<std::string> lines;
+
+  int pipefd[2];
+  if (pipe(pipefd) != 0) {
+    return lines;
+  }
+
+  pid_t pid = fork();
+
+  if (pid < 0) {
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return lines;
+  }
+
+  if (pid == 0) {
+    // Child: redirect stdout into the pipe's write end, then exec
+    close(pipefd[0]);
+    dup2(pipefd[1], STDOUT_FILENO);
+    close(pipefd[1]);
+
+    execl(script_path.c_str(), script_path.c_str(), static_cast<char*>(nullptr));
+
+    _exit(127);
+  }
+
+  // Parent: read everything the child writes, then wait for it to finish
+  close(pipefd[1]);
+
+  std::string output;
+  char buffer[4096];
+  ssize_t bytesRead;
+
+  while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
+    output.append(buffer, bytesRead);
+  }
+  close(pipefd[0]);
+
+  int status;
+  waitpid(pid, &status, 0); // ensure script has fully finished
+
+  std::istringstream iss(output);
+  std::string line;
+  while (std::getline(iss, line)) {
+    if (!line.empty()) lines.push_back(line);
+  }
+
+  return lines;
+}
+
+static std::vector<std::string> collectScriptCandidates(const std::string& prefix) {  
+  std::vector<std::string> results;
+  std::vector<std::string> lines = runCompleterScript(g_pendingScriptPath);
+
+  for (const auto& line : lines) {
+    if (line.compare(0, prefix.size(), prefix) == 0) {
+      results.push_back(line);
+    }
+  }
+
+  return results;
+}
+
+// Set just before calling rl_completion_matches(text, scriptGenerator),
+// since the generator's signature (fixed by readline) can't take extra
+// parameters directly.
+static std::string g_pendingScriptPath;
+
 // both generators share this, decided by shellCompletion based on cursor position (start == 0 or not)
 static char* makeGenerator(const char* text, int state, std::vector<std::string> (*collector)(const std::string&)) {
   static std::vector<std::string> matches;
@@ -163,6 +241,10 @@ static char* filenameGenerator(const char* text, int state) {
   return makeGenerator(text, state, collectFilenameCandidates);
 }
 
+static char* scriptGenerator(const char* text, int state) {
+  return makeGenerator(text, state, collectScriptCandidates);
+}
+
 // custom display hook for filename/directory listing
 // called whenever there is more than one match
 // matches[0] is the computed longest-common-prefix whenever multiple matches,
@@ -186,6 +268,13 @@ static void filenameDisplayHook(char** matches, int len, int max) {
   rl_forced_update_display(); // redraw "$ <original input>" below the listing
 }
 
+// extract the command name (first word) from the line
+static std::string extractCommandName() {
+  std::string line(rl_line_buffer ? rl_line_buffer : "");
+  size_t firstSpace = line.find(' ');
+  return (firstSpace == std::string::npos) ? line : line.substr(0, firstSpace);
+}
+
 // readline parses word boundaries itself using its default word-break characters
 // which includes space (so extracts text after the last space)
 static char** shellCompletion(const char* text, int start, int end) {
@@ -200,14 +289,26 @@ static char** shellCompletion(const char* text, int start, int end) {
     rl_completion_display_matches_hook = nullptr; // default listing for commands
     matches = rl_completion_matches(text, commandGenerator);
   } else {
-    rl_completion_display_matches_hook = filenameDisplayHook;
-    matches = rl_completion_matches(text, filenameGenerator);
+    std::string command_name = extractCommandName();
+    auto& registry = completionRegistry();
+    auto it = registry.find(command_name);
 
-    // If exactly one match and it's a directory, append '/' instead of a space, and suppress the space entirely
-    if (matches != nullptr && matches[0] != nullptr && matches[1] == nullptr) {
-      std::error_code ec;
-      if (fs::is_directory(matches[0], ec)) {
-        rl_completion_append_character = '/';
+    if (it != registry.end()) {
+      // completer script is registered for this command
+      // use it instead of filename completion
+      g_pendingScriptPath = it->second;
+      rl_completion_display_matches_hook = nullptr;
+      matches = rl_completion_matches(text, scriptGenerator);
+    } else {
+      rl_completion_display_matches_hook = filenameDisplayHook;
+      matches = rl_completion_matches(text, filenameGenerator);
+      
+      // If exactly one match and it's a directory, append '/' instead of a space, and suppress the space entirely
+      if (matches != nullptr && matches[0] != nullptr && matches[1] == nullptr) {
+        std::error_code ec;
+        if (fs::is_directory(matches[0], ec)) {
+          rl_completion_append_character = '/';
+        }
       }
     }
   }

@@ -1,5 +1,6 @@
 #include "shell/executor.h"
 #include "shell/path_utils.h"
+#include "shell/completion_registry.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -131,12 +132,6 @@ static void runCd(const Command& cmd) {
   } catch (const fs::filesystem_error&) {
     std::cout << "cd: " << target << ": No such file or directory" << std::endl;
   }
-}
-
-// registry to store paths for completion commands
-static std::unordered_map<std::string, std::string>& completionRegistry() {
-  static std::unordered_map<std::string, std::string> registry;
-  return registry;
 }
 
 static void runComplete(const Command& cmd) {
