@@ -9,6 +9,7 @@
 #include <vector>
 #include <unordered_set>
 #include <algorithm>
+#include <iostream>
 
 #ifdef _WIN32
   const char PATH_SEPARATOR = ';';
@@ -101,7 +102,7 @@ static std::vector<std::string> collectFilenameCandidates(const std::string& tex
   }
 
   std::error_code ec;
-  if (!fs::is_directory(searchDir)) {
+  if (!fs::is_directory(searchDir, ec)) {
     return results; // directory part doesn't exist
   }
 
@@ -162,6 +163,29 @@ static char* filenameGenerator(const char* text, int state) {
   return makeGenerator(text, state, collectFilenameCandidates);
 }
 
+// custom display hook for filename/directory listing
+// called whenever there is more than one match
+// matches[0] is the computed longest-common-prefix whenever multiple matches,
+// so our candidates are matches[1..len]
+static void filenameDisplayHook(char** matches, int len, int max) {
+  std::cout << "\n";
+
+  for (int i = 1; i <= len; i++) {
+    std::string entry = matches[i];
+
+    std::error_code ec;
+    if (fs::is_directory(entry, ec)) {
+      entry += "/";
+    }
+
+    std::cout << entry;
+    if (i < len) std::cout << "  ";
+  }
+
+  std::cout << "\n";
+  rl_forced_update_display(); // redraw "$ <original input>" below the listing
+}
+
 // readline parses word boundaries itself using its default word-break characters
 // which includes space (so extracts text after the last space)
 static char** shellCompletion(const char* text, int start, int end) {
@@ -173,8 +197,10 @@ static char** shellCompletion(const char* text, int start, int end) {
   char** matches;
 
   if (start == 0) {
+    rl_completion_display_matches_hook = nullptr; // default listing for commands
     matches = rl_completion_matches(text, commandGenerator);
   } else {
+    rl_completion_display_matches_hook = filenameDisplayHook;
     matches = rl_completion_matches(text, filenameGenerator);
 
     // If exactly one match and it's a directory, append '/' instead of a space, and suppress the space entirely
