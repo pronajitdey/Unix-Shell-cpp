@@ -131,7 +131,12 @@ static std::vector<std::string> collectFilenameCandidates(const std::string& tex
 // doesn't pass completion context yet), captures its stdout via a pipe,
 // and splits it into lines. Blocks until the child exits, so output is
 // always complete before we read it.
-static std::vector<std::string> runCompleterScript(const std::string& script_path) {
+static std::vector<std::string> runCompleterScript(
+    const std::string& script_path,
+    const std::string& command_name,
+    const std::string& word_being_completed,
+    const std::string& previous_word) {
+
   std::vector<std::string> lines;
 
   int pipefd[2];
@@ -153,7 +158,12 @@ static std::vector<std::string> runCompleterScript(const std::string& script_pat
     dup2(pipefd[1], STDOUT_FILENO);
     close(pipefd[1]);
 
-    execl(script_path.c_str(), script_path.c_str(), static_cast<char*>(nullptr));
+    execl(script_path.c_str(), 
+          script_path.c_str(),          // argv[0]: program name
+          command_name.c_str(),         // argv[1]: command being completed
+          word_being_completed.c_str(), // argv[2]: current partial word
+          previous_word.c_str(),        // argv[3]: preceding word
+          static_cast<char*>(nullptr));
 
     _exit(127);
   }
@@ -171,7 +181,8 @@ static std::vector<std::string> runCompleterScript(const std::string& script_pat
   close(pipefd[0]);
 
   int status;
-  waitpid(pid, &status, 0); // ensure script has fully finished
+   // ensure script has fully finished and child has been reaped
+  waitpid(pid, &status, 0);
 
   std::istringstream iss(output);
   std::string line;
@@ -186,10 +197,12 @@ static std::vector<std::string> runCompleterScript(const std::string& script_pat
 // since the generator's signature (fixed by readline) can't take extra
 // parameters directly.
 static std::string g_pendingScriptPath;
+static std::string g_pendingCommandPath;
+static std::string g_pendingPreviousWord;
 
 static std::vector<std::string> collectScriptCandidates(const std::string& prefix) {  
   std::vector<std::string> results;
-  std::vector<std::string> lines = runCompleterScript(g_pendingScriptPath);
+  std::vector<std::string> lines = runCompleterScript(g_pendingScriptPath, g_pendingCommandPath, prefix, g_pendingPreviousWord);
 
   for (const auto& line : lines) {
     if (line.compare(0, prefix.size(), prefix) == 0) {
@@ -275,6 +288,31 @@ static std::string extractCommandName() {
   return (firstSpace == std::string::npos) ? line : line.substr(0, firstSpace);
 }
 
+// Everything before the word currently being completed (i.e. text[0..start))
+// in the full line, then take the last whitespace-delimited token of that.
+static std::string extractPreviousWord(int start) {
+  if (rl_line_buffer == nullptr || start <= 0) {
+    return "";
+  }
+
+  std::string before_cursor(rl_line_buffer, start); // chars [0, start)
+
+  // Trim trailing whitespace (the space right before the word being completed)
+  size_t end = before_cursor.find_last_not_of(' ');
+  if (end == std::string::npos) return "";
+  before_cursor = before_cursor.substr(0, end + 1);
+
+  // Now find the last remaining space to isolate the final token
+  size_t lastSpace = before_cursor.find_last_of(' ');
+  if (lastSpace == std::string::npos) {
+    // Only one token before the cursor - that's the command name itself,
+    // so no argument before the one being completed
+    return "";
+  }
+  
+  return before_cursor.substr(lastSpace + 1);
+}
+
 // readline parses word boundaries itself using its default word-break characters
 // which includes space (so extracts text after the last space)
 static char** shellCompletion(const char* text, int start, int end) {
@@ -297,6 +335,9 @@ static char** shellCompletion(const char* text, int start, int end) {
       // completer script is registered for this command
       // use it instead of filename completion
       g_pendingScriptPath = it->second;
+      g_pendingCommandPath = command_name;
+      g_pendingPreviousWord = extractPreviousWord(start);
+
       rl_completion_display_matches_hook = nullptr;
       matches = rl_completion_matches(text, scriptGenerator);
     } else {
