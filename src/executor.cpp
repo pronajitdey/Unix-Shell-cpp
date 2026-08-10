@@ -133,8 +133,10 @@ static void runCd(const Command& cmd) {
 }
 
 static void runComplete(const Command& cmd) {
-  // TODO
-  (void)cmd;
+  if (cmd.args.size() >= 2 && cmd.args[0] == "-p") {
+    std::cout << "complete: " << cmd.args[1] << ": no completion specification" << std::endl;
+    return;
+  }
 }
 
 bool executeCommand(const Command& cmd) {
