@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <fstream>
 #include <fcntl.h>
+#include <unordered_map>
 
 // handle echo command
 static void runEcho(const Command& cmd) {
@@ -132,9 +133,30 @@ static void runCd(const Command& cmd) {
   }
 }
 
+// registry to store paths for completion commands
+static std::unordered_map<std::string, std::string>& completionRegistry() {
+  static std::unordered_map<std::string, std::string> registry;
+  return registry;
+}
+
 static void runComplete(const Command& cmd) {
   if (cmd.args.size() >= 2 && cmd.args[0] == "-p") {
-    std::cout << "complete: " << cmd.args[1] << ": no completion specification" << std::endl;
+    const std::string& target = cmd.args[1];
+    auto& registry = completionRegistry();
+    auto it = registry.find(target);
+
+    if (it == registry.end()) {
+      std::cout << "complete: " << target << ": no completion specification" << std::endl;
+    } else {
+      std::cout << "complete -C '" << it->second << "' " << target << std::endl;
+    }
+    return;
+  }
+
+  if (cmd.args.size() >= 3 && cmd.args[0] == "-C") {
+    const std::string& script_path = cmd.args[1];
+    const std::string& command_name = cmd.args[2];
+    completionRegistry()[command_name] = script_path;
     return;
   }
 }
