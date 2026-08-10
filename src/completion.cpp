@@ -319,13 +319,7 @@ static std::string extractPreviousWord(int start) {
 
   // Now find the last remaining space to isolate the final token
   size_t lastSpace = before_cursor.find_last_of(' ');
-  if (lastSpace == std::string::npos) {
-    // Only one token before the cursor - that's the command name itself,
-    // so no argument before the one being completed
-    return "";
-  }
-  
-  return before_cursor.substr(lastSpace + 1);
+  return (lastSpace == std::string::npos) ? before_cursor : before_cursor.substr(lastSpace + 1);
 }
 
 // readline parses word boundaries itself using its default word-break characters
