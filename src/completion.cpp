@@ -78,18 +78,45 @@ static std::vector<std::string> collectCommandCandidates(const std::string& pref
   return results;
 }
 
-// filename completion (in current directory)
-static std::vector<std::string> collectFileCandidates(const std::string& prefix) {
+// filename completion (in current directory with partial paths)
+static std::vector<std::string> collectFilenameCandidates(const std::string& text) {
   std::vector<std::string> results;
 
+  size_t lastSlash = text.find_last_of('/');
+
+  fs::path searchDir;
+  std::string prefix;
+
+  if (lastSlash == std::string::npos) {
+    // No '/' in filename, search current directory
+    searchDir = fs::current_path();
+    prefix = text;
+  } else {
+    // split into "directory part" (up to and including the last '/')
+    // and "prefix part" (everything after it)
+    std::string dirPart = text.substr(0, lastSlash + 1);
+    searchDir = dirPart;
+    prefix = text.substr(lastSlash + 1);
+  }
+
   std::error_code ec;
-  for (const auto& entry : fs::directory_iterator(fs::current_path(), ec)) {
+  if (!fs::is_directory(searchDir)) {
+    return results; // directory part doesn't exist
+  }
+
+  for (const auto& entry : fs::directory_iterator(searchDir, ec)) {
     if (ec) break;
 
     const std::string filename = entry.path().filename().string();
 
     if (filename.compare(0, prefix.length(), prefix) == 0) {
-      results.push_back(filename);
+      // return full token (directory part + prefix part),
+      // since readline replaces the entire word with what we return
+      if (lastSlash == std::string::npos) {
+        results.push_back(filename);
+      } else {
+        results.push_back(text.substr(0, lastSlash + 1) + filename);
+      }
     }
   }
 
@@ -135,7 +162,7 @@ static char* commandGenerator(const char* text, int state) {
 }
 
 static char* filenameGenerator(const char* text, int state) {
-  return makeGenerator(text, state, collectFileCandidates);
+  return makeGenerator(text, state, collectFilenameCandidates);
 }
 
 // readline parses word boundaries itself using its default word-break characters
