@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sstream>
+#include <cstdio> // for snprintf
 
 #ifdef _WIN32
   const char PATH_SEPARATOR = ';';
@@ -135,7 +136,9 @@ static std::vector<std::string> runCompleterScript(
     const std::string& script_path,
     const std::string& command_name,
     const std::string& word_being_completed,
-    const std::string& previous_word) {
+    const std::string& previous_word,
+    const std::string& compLine,
+    int compPoint) {
 
   std::vector<std::string> lines;
 
@@ -157,6 +160,15 @@ static std::vector<std::string> runCompleterScript(
     close(pipefd[0]);
     dup2(pipefd[1], STDOUT_FILENO);
     close(pipefd[1]);
+
+    // setenv() here only affects THIS child's environment (post-fork,
+    // separate address space) — the parent shell's environment is
+    // completely untouched.
+    setenv("COMP_LINE", compLine.c_str(), 1);
+
+    char pointBuf[32];
+    snprintf(pointBuf, sizeof(pointBuf), "%d", compPoint);
+    setenv("COMP_POINT", pointBuf, 1);
 
     execl(script_path.c_str(), 
           script_path.c_str(),          // argv[0]: program name
@@ -199,10 +211,12 @@ static std::vector<std::string> runCompleterScript(
 static std::string g_pendingScriptPath;
 static std::string g_pendingCommandPath;
 static std::string g_pendingPreviousWord;
+static std::string g_pendingCompLine;
+static int g_pendingCompPoint;
 
 static std::vector<std::string> collectScriptCandidates(const std::string& prefix) {  
   std::vector<std::string> results;
-  std::vector<std::string> lines = runCompleterScript(g_pendingScriptPath, g_pendingCommandPath, prefix, g_pendingPreviousWord);
+  std::vector<std::string> lines = runCompleterScript(g_pendingScriptPath, g_pendingCommandPath, prefix, g_pendingPreviousWord, g_pendingCompLine, g_pendingCompPoint);
 
   for (const auto& line : lines) {
     if (line.compare(0, prefix.size(), prefix) == 0) {
@@ -337,6 +351,15 @@ static char** shellCompletion(const char* text, int start, int end) {
       g_pendingScriptPath = it->second;
       g_pendingCommandPath = command_name;
       g_pendingPreviousWord = extractPreviousWord(start);
+
+      // COMP_LINE: the full line as readline currently holds it.
+      // COMP_POINT: cursor position, which readline tracks in rl_point.
+      g_pendingCompLine = (rl_line_buffer != nullptr) ? std::string(rl_line_buffer) : "";
+
+      // rl_point is not necessarily equal to end. 
+      // For example, if the cursor is in the middle of a word, 
+      // rl_point can be between start and end.
+      g_pendingCompPoint = rl_point;
 
       rl_completion_display_matches_hook = nullptr;
       matches = rl_completion_matches(text, scriptGenerator);
