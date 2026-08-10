@@ -29,7 +29,8 @@ static void runType(const Command& cmd) {
       || target == "type" 
       || target == "pwd"
       || target == "cd"
-      || target == "complete") {    // check builtin commands
+      || target == "complete"
+      || target == "jobs") {    // check builtin commands
     std::cout << target << " is a shell builtin" << std::endl;
     return;
   }
@@ -162,6 +163,10 @@ static void runComplete(const Command& cmd) {
   }
 }
 
+static void runJobs(const Command& cmd) {
+  (void) cmd;
+}
+
 bool executeCommand(const Command& cmd) {
   if (cmd.name.empty()) {
     return true;  // empty input, just reprompt
@@ -173,7 +178,7 @@ bool executeCommand(const Command& cmd) {
 
   bool isBuiltinCmd = (cmd.name == "echo" || cmd.name == "pwd" 
                        || cmd.name == "type" || cmd.name == "cd"
-                       || cmd.name == "complete");
+                       || cmd.name == "complete" || cmd.name == "jobs");
 
   // Builtins write through std::cout
   // redirect by swapping stream buffer and then restoring it
@@ -213,6 +218,8 @@ bool executeCommand(const Command& cmd) {
     runType(cmd);
   } else if (cmd.name == "complete") {
     runComplete(cmd);
+  } else if (cmd.name == "jobs") {
+    runJobs(cmd);
   } else { 
     runExternal(cmd);
   }

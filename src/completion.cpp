@@ -25,7 +25,7 @@
 namespace fs = std::filesystem;
 
 static const std::vector<std::string> BUILTIN_NAMES = {
-  "echo", "exit", "completion"
+  "echo", "exit", "completion", "jobs"
 };
 
 // command-name completion (builtins + PATH executables)
