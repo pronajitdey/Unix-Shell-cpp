@@ -224,6 +224,7 @@ static std::vector<std::string> collectScriptCandidates(const std::string& prefi
     }
   }
 
+  std::sort(results.begin(), results.end());
   return results;
 }
 
