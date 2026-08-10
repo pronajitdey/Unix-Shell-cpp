@@ -154,6 +154,12 @@ static void runComplete(const Command& cmd) {
     completionRegistry()[command_name] = script_path;
     return;
   }
+
+  if (cmd.args.size() >= 2 && cmd.args[0] == "-r") {
+    const std::string& target = cmd.args[1];
+    completionRegistry().erase(target);
+    return;
+  }
 }
 
 bool executeCommand(const Command& cmd) {
