@@ -86,6 +86,7 @@ static std::vector<std::string> collectFilenameCandidates(const std::string& tex
 
   fs::path searchDir;
   std::string prefix;
+  std::string dirPart;  // "" if no slash
 
   if (lastSlash == std::string::npos) {
     // No '/' in filename, search current directory
@@ -94,7 +95,7 @@ static std::vector<std::string> collectFilenameCandidates(const std::string& tex
   } else {
     // split into "directory part" (up to and including the last '/')
     // and "prefix part" (everything after it)
-    std::string dirPart = text.substr(0, lastSlash + 1);
+    dirPart = text.substr(0, lastSlash + 1);
     searchDir = dirPart;
     prefix = text.substr(lastSlash + 1);
   }
@@ -112,11 +113,7 @@ static std::vector<std::string> collectFilenameCandidates(const std::string& tex
     if (filename.compare(0, prefix.length(), prefix) == 0) {
       // return full token (directory part + prefix part),
       // since readline replaces the entire word with what we return
-      if (lastSlash == std::string::npos) {
-        results.push_back(filename);
-      } else {
-        results.push_back(text.substr(0, lastSlash + 1) + filename);
-      }
+      results.push_back(dirPart + filename);
     }
   }
 
@@ -171,12 +168,25 @@ static char** shellCompletion(const char* text, int start, int end) {
     (void)end;
 
   rl_attempted_completion_over = 1;
+  rl_completion_append_character = ' ';   // reset to default each time
 
-  if (start != 0) {
-    return rl_completion_matches(text, filenameGenerator);
+  char** matches;
+
+  if (start == 0) {
+    matches = rl_completion_matches(text, commandGenerator);
+  } else {
+    matches = rl_completion_matches(text, filenameGenerator);
+
+    // If exactly one match and it's a directory, append '/' instead of a space, and suppress the space entirely
+    if (matches != nullptr && matches[0] != nullptr && matches[1] == nullptr) {
+      std::error_code ec;
+      if (fs::is_directory(matches[0], ec)) {
+        rl_completion_append_character = '/';
+      }
+    }
   }
 
-  return rl_completion_matches(text, commandGenerator);
+  return matches;
 }
 
 void initCompletion() {
