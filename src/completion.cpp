@@ -182,6 +182,11 @@ static std::vector<std::string> runCompleterScript(const std::string& script_pat
   return lines;
 }
 
+// Set just before calling rl_completion_matches(text, scriptGenerator),
+// since the generator's signature (fixed by readline) can't take extra
+// parameters directly.
+static std::string g_pendingScriptPath;
+
 static std::vector<std::string> collectScriptCandidates(const std::string& prefix) {  
   std::vector<std::string> results;
   std::vector<std::string> lines = runCompleterScript(g_pendingScriptPath);
@@ -194,11 +199,6 @@ static std::vector<std::string> collectScriptCandidates(const std::string& prefi
 
   return results;
 }
-
-// Set just before calling rl_completion_matches(text, scriptGenerator),
-// since the generator's signature (fixed by readline) can't take extra
-// parameters directly.
-static std::string g_pendingScriptPath;
 
 // both generators share this, decided by shellCompletion based on cursor position (start == 0 or not)
 static char* makeGenerator(const char* text, int state, std::vector<std::string> (*collector)(const std::string&)) {
