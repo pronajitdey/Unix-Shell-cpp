@@ -10,6 +10,7 @@
 #include <fstream>
 #include <fcntl.h>
 #include <unordered_map>
+#include <iomanip>
 
 // Helper to reconstruct a readable command line for job registration
 // (not used for execution — just for future `jobs` listing/display).
@@ -17,6 +18,9 @@ static std::string reconstructCommandLine(const Command& cmd) {
     std::string line = cmd.name;
     for (const auto& arg : cmd.args) {
         line += " " + arg;
+    }
+    if (cmd.background) {
+      line += " &";
     }
     return line;
 }
@@ -182,7 +186,24 @@ static void runComplete(const Command& cmd) {
 }
 
 static void runJobs(const Command& cmd) {
-  (void) cmd;
+  (void)cmd;
+
+  const auto& jobs = allJobs();
+
+  for (size_t i = 0; i < jobs.size(); i++) {
+    const Job& job = jobs[i];
+
+    // '+' marks the most recent job. With only one job ever tested
+    // in this stage, this is always the last entry — the '-' marker
+    // for the second-most-recent job is a later-stage concern.
+    char marker = (i == jobs.size() - 1) ? '+' : '-';
+
+    std::string status = job.running ? "Running" : "Done";
+
+    std::cout << "[" << job.number << "]" << marker << "  "
+              << std::left << std::setw(24) << status
+              << job.commandLine << std::endl;
+  }
 }
 
 bool executeCommand(const Command& cmd) {
