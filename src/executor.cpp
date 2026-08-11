@@ -12,6 +12,11 @@
 #include <unordered_map>
 #include <iomanip>
 
+static bool isBuiltinName(const std::string& name) {
+  return name == "echo" || name == "pwd" || name == "cd" ||
+         name == "type" || name == "complete" || name == "jobs";
+}
+
 // Shared helper: given the current (already-reaped) job list, print one
 // line per job in `jobsToShow`, using markers computed relative to the
 // FULL current table (`allJobsSnapshot`), not just the subset being shown.
@@ -35,13 +40,13 @@ static void printJobLine(const Job& job, char marker) {
 
 // Helper to reconstruct a readable command line for job registration
 // (not used for execution — just for future `jobs` listing/display).
-static std::string reconstructCommandLine(const Command& cmd) {
-    std::string line = cmd.name;
-    for (const auto& arg : cmd.args) {
-        line += " " + arg;
-    }
-    return line;
-}
+// static std::string reconstructCommandLine(const Command& cmd) {
+//     std::string line = cmd.name;
+//     for (const auto& arg : cmd.args) {
+//         line += " " + arg;
+//     }
+//     return line;
+// }
 
 // Used automatically before each prompt: reap, announce ONLY the newly
 // finished jobs (markers computed over the full set at reap time, since
@@ -98,72 +103,72 @@ static void runType(const Command& cmd) {
 }
 
 // execute external commands
-static void runExternal(const Command& cmd) {
-  const char* env_path = std::getenv("PATH");
-  fs::path command_path = env_path ? findExecutableFilePath(env_path, cmd.name) : fs::path{};
+// static void runExternal(const Command& cmd) {
+//   const char* env_path = std::getenv("PATH");
+//   fs::path command_path = env_path ? findExecutableFilePath(env_path, cmd.name) : fs::path{};
 
-  if (command_path.empty()) {
-    std::cout << cmd.name << ": command not found" << std::endl;
-    return;
-  }
+//   if (command_path.empty()) {
+//     std::cout << cmd.name << ": command not found" << std::endl;
+//     return;
+//   }
 
-  pid_t pid = fork();
+//   pid_t pid = fork();
 
-  if (pid < 0) {
-    perror("fork");
-    return;
-  }
+//   if (pid < 0) {
+//     perror("fork");
+//     return;
+//   }
 
-  if (pid == 0) {
-    if (!cmd.stdout_redirect.empty()) {
-      int flags = O_WRONLY | O_CREAT | (cmd.stdout_append ? O_APPEND : O_TRUNC);
-      int fd = open(cmd.stdout_redirect.c_str(), flags, 0644);
+//   if (pid == 0) {
+//     if (!cmd.stdout_redirect.empty()) {
+//       int flags = O_WRONLY | O_CREAT | (cmd.stdout_append ? O_APPEND : O_TRUNC);
+//       int fd = open(cmd.stdout_redirect.c_str(), flags, 0644);
 
-      if (fd < 0) {
-        perror("open");
-        _exit(1);
-      }
-      // only child's file descriptor is changed
-      dup2(fd, STDOUT_FILENO);
-      close(fd);
-    }
+//       if (fd < 0) {
+//         perror("open");
+//         _exit(1);
+//       }
+//       // only child's file descriptor is changed
+//       dup2(fd, STDOUT_FILENO);
+//       close(fd);
+//     }
 
-    if (!cmd.stderr_redirect.empty()) {
-      int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
-      int fd = open(cmd.stderr_redirect.c_str(), flags, 0644);
+//     if (!cmd.stderr_redirect.empty()) {
+//       int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+//       int fd = open(cmd.stderr_redirect.c_str(), flags, 0644);
 
-      if (fd < 0) { 
-        perror("open"); 
-        _exit(1); 
-      }
+//       if (fd < 0) { 
+//         perror("open"); 
+//         _exit(1); 
+//       }
 
-      dup2(fd, STDERR_FILENO);
-      close(fd);
-    }
+//       dup2(fd, STDERR_FILENO);
+//       close(fd);
+//     }
 
-    std::vector<char*> argv;
-    argv.push_back(const_cast<char*>(cmd.name.c_str()));
-    for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
-    argv.push_back(nullptr);
+//     std::vector<char*> argv;
+//     argv.push_back(const_cast<char*>(cmd.name.c_str()));
+//     for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
+//     argv.push_back(nullptr);
 
-    // new program inherits the child's file descriptors
-    execvp(cmd.name.c_str(), argv.data());
+//     // new program inherits the child's file descriptors
+//     execvp(cmd.name.c_str(), argv.data());
 
-    // only reached if execvp fails
-    perror("execvp");
-    _exit(127);   // 127 for command not found (in shell scripts)
-  }
+//     // only reached if execvp fails
+//     perror("execvp");
+//     _exit(127);   // 127 for command not found (in shell scripts)
+//   }
 
-  // Parent process
-  if (cmd.background) {
-    int jobNumber = registerBackgroundJob(pid, reconstructCommandLine(cmd));
-    std::cout << "[" << jobNumber << "] " << pid << std::endl;
-    // Deliberately no waitpid() here — that's what makes it non-blocking.
-  } else {
-    int status;
-    waitpid(pid, &status, 0);
-  }
-}
+//   // Parent process
+//   if (cmd.background) {
+//     int jobNumber = registerBackgroundJob(pid, reconstructCommandLine(cmd));
+//     std::cout << "[" << jobNumber << "] " << pid << std::endl;
+//     // Deliberately no waitpid() here — that's what makes it non-blocking.
+//   } else {
+//     int status;
+//     waitpid(pid, &status, 0);
+//   }
+// }
 
 // run pwd builtin command
 static void runPwd() {
@@ -240,69 +245,231 @@ static void runJobs(const Command& cmd) {
   removeFinishedJobs();
 }
 
-bool executeCommand(const Command& cmd) {
-  if (cmd.name.empty()) {
-    return true;  // empty input, just reprompt
-  }
+// Runs ONE builtin synchronously in the current process (used only for
+// the single-command, non-piped case — see note in executePipeline).
+static bool runBuiltinDispatch(const Command& cmd) {
+  if (cmd.name == "exit") return false;
+  if (cmd.name == "echo") { runEcho(cmd); return true; }
+  if (cmd.name == "pwd") { runPwd(); return true; }
+  if (cmd.name == "cd") { runCd(cmd); return true; }
+  if (cmd.name == "complete") { runComplete(cmd); return true; }
+  if (cmd.name == "jobs") { runJobs(cmd); return true; }
+  if (cmd.name == "type") { runType(cmd); return true; }
+  return true;
+}
 
-  if (cmd.name == "exit") {
-    return false;
-  }
-
-  bool isBuiltinCmd = (cmd.name == "echo" || cmd.name == "pwd" 
-                       || cmd.name == "type" || cmd.name == "cd"
-                       || cmd.name == "complete" || cmd.name == "jobs");
-
-  // Builtins write through std::cout
-  // redirect by swapping stream buffer and then restoring it
-  std::ofstream outFile, errFile;
-  std::streambuf* origCoutBuf = nullptr;
-  std::streambuf* origCerrBuf = nullptr;
-
-  if (isBuiltinCmd) {
+// Applies this command's redirections via dup2. Called in a CHILD
+// process, after fork(), before execvp(). pipeIn/pipeOut are the fds
+// to use for stdin/stdout when part of a pipeline (-1 means "leave as
+// inherited", i.e. no pipe on that side).
+static void setupChildIO(const Command& cmd, int pipeIn, int pipeOut) {
+    if (pipeIn != -1) {
+        dup2(pipeIn, STDIN_FILENO);
+    }
+    if (pipeOut != -1) {
+        dup2(pipeOut, STDOUT_FILENO);
+    }
 
     if (!cmd.stdout_redirect.empty()) {
-      auto mode = cmd.stdout_append ? std::ios::app : std::ios::trunc;
-      outFile.open(cmd.stdout_redirect, mode);
-      if (outFile.is_open()) {
-        // changes cout's buffer to file's buffer and returns old buffer
-        origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
-      }
+        int flags = O_WRONLY | O_CREAT | (cmd.stdout_append ? O_APPEND : O_TRUNC);
+        int fd = open(cmd.stdout_redirect.c_str(), flags, 0644);
+        if (fd < 0) { perror("open"); _exit(1); }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
     }
+
     if (!cmd.stderr_redirect.empty()) {
-      auto mode = cmd.stderr_append ? std::ios::app : std::ios::trunc;
-      errFile.open(cmd.stderr_redirect, mode);
-      if (errFile.is_open()) {
-        // changes cerr's buffer to file's buffer and returns old buffer
-        origCerrBuf = std::cerr.rdbuf(errFile.rdbuf());
+        int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+        int fd = open(cmd.stderr_redirect.c_str(), flags, 0644);
+        if (fd < 0) { perror("open"); _exit(1); }
+        dup2(fd, STDERR_FILENO);
+        close(fd);
+    }
+}
+
+// Forks one child to run a single external command as part of a
+// pipeline. Does NOT wait — caller collects all pids and waits after
+// launching every stage.
+static pid_t spawnPipelineStage(const Command& cmd, int pipeIn, int pipeOut) {
+  pid_t pid = fork();
+
+  if (pid < 0) {
+    perror("fork");
+    return -1;
+  }
+
+  if (pid == 0) {
+    setupChildIO(cmd, pipeIn, pipeOut);
+
+    std::vector<char*> argv;
+    argv.push_back(const_cast<char*>(cmd.name.c_str()));
+    for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
+   
+    argv.push_back(nullptr);
+
+    execvp(cmd.name.c_str(), argv.data());
+
+    std::cerr << cmd.name << ": command not found" << std::endl;
+    _exit(127);
+  }
+
+  return pid;
+}
+
+static std::string reconstructPipelineCommandLine(const Pipeline& pipeline) {
+  std::string line;
+  for (size_t i = 0; i < pipeline.commands.size(); ++i) {
+    const Command& cmd = pipeline.commands[i];
+    line += cmd.name;
+    for (const auto& arg : cmd.args) line += " " + arg;
+    if (i + 1 < pipeline.commands.size()) line += " | ";
+  }
+  return line;
+}
+
+bool executePipeline(const Pipeline& pipeline) {
+  if (pipeline.commands.empty()) {
+    return true;
+  }
+
+  // Single command, no pipe involved: keep the existing behavior —
+  // builtins run directly in this process (so `cd`, `exit` etc. still
+  // affect the shell itself), externals fork/exec as before.
+  // (Builtins INSIDE a multi-stage pipeline are out of scope for this
+  // stage — that's the "Pipelines with built-ins" stage next.)
+  if (pipeline.commands.size() == 1) {
+    const Command& cmd = pipeline.commands[0];
+
+    if (cmd.name.empty()) return true;
+
+    if (isBuiltinName(cmd.name) || cmd.name == "exit") {
+      return runBuiltinDispatch(cmd);
+    }
+
+    const char* env_path = std::getenv("PATH");
+    fs::path command_path = env_path ? findExecutableFilePath(env_path, cmd.name) : fs::path{};
+
+    if (command_path.empty()) {
+      std::cout << cmd.name << ": command not found" << std::endl;
+      return true;
+    }
+
+    pid_t pid = spawnPipelineStage(cmd, -1, -1);
+    if (pid < 0) return true;
+
+    if (cmd.background) {
+      int jobNumber = registerBackgroundJob(pid, reconstructPipelineCommandLine(pipeline));
+      std::cout << "[" << jobNumber << "] " << pid << std::endl;
+    } else {
+      int status;
+      waitpid(pid, &status, 0);
+    }
+
+    return true;
+  }
+
+  // Multi-command pipeline: chain N commands via N-1 pipes.
+  size_t n = pipeline.commands.size();
+  std::vector<pid_t> pids;
+
+  int prevReadEnd = -1; // stdin source for the NEXT command, from the PREVIOUS pipe
+
+  for (size_t i = 0; i < n; ++i) {
+    int pipefd[2] = {-1, -1};
+    bool isLast = (i == n - 1);
+
+    if (!isLast) {
+      if (pipe(pipefd) != 0) {
+        perror("pipe");
+        break;
       }
     }
+
+    int stageIn = prevReadEnd;                 // -1 for the first command
+    int stageOut = isLast ? -1 : pipefd[1];     // -1 for the last command
+
+    pid_t pid = spawnPipelineStage(pipeline.commands[i], stageIn, stageOut);
+    if (pid > 0) pids.push_back(pid);
+
+    // Parent no longer needs these ends once the child has them
+    // (the child inherited copies via fork(), dup2'd its own).
+    if (prevReadEnd != -1) close(prevReadEnd);
+    if (!isLast) close(pipefd[1]);
+
+    prevReadEnd = isLast ? -1 : pipefd[0]; // becomes next stage's stdin source
   }
 
-  bool result = true;
-
-  if (cmd.name == "echo") {
-    runEcho(cmd);
-  } else if (cmd.name == "pwd") {
-    runPwd();
-  } else if (cmd.name == "cd") {
-    runCd(cmd);
-  } else if (cmd.name == "type") {
-    runType(cmd);
-  } else if (cmd.name == "complete") {
-    runComplete(cmd);
-  } else if (cmd.name == "jobs") {
-    runJobs(cmd);
-  } else { 
-    runExternal(cmd);
+  for (pid_t pid : pids) {
+    int status;
+    waitpid(pid, &status, 0);
   }
 
-  if (origCoutBuf) {
-    std::cout.rdbuf(origCoutBuf);   // restore terminal output
-  }
-  if (origCerrBuf) {
-    std::cerr.rdbuf(origCerrBuf);
-  }
-
-  return result;
+  return true;
 }
+
+// bool executeCommand(const Command& cmd) {
+//   if (cmd.name.empty()) {
+//     return true;  // empty input, just reprompt
+//   }
+
+//   if (cmd.name == "exit") {
+//     return false;
+//   }
+
+//   bool isBuiltinCmd = (cmd.name == "echo" || cmd.name == "pwd" 
+//                        || cmd.name == "type" || cmd.name == "cd"
+//                        || cmd.name == "complete" || cmd.name == "jobs");
+
+//   // Builtins write through std::cout
+//   // redirect by swapping stream buffer and then restoring it
+//   std::ofstream outFile, errFile;
+//   std::streambuf* origCoutBuf = nullptr;
+//   std::streambuf* origCerrBuf = nullptr;
+
+//   if (isBuiltinCmd) {
+
+//     if (!cmd.stdout_redirect.empty()) {
+//       auto mode = cmd.stdout_append ? std::ios::app : std::ios::trunc;
+//       outFile.open(cmd.stdout_redirect, mode);
+//       if (outFile.is_open()) {
+//         // changes cout's buffer to file's buffer and returns old buffer
+//         origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
+//       }
+//     }
+//     if (!cmd.stderr_redirect.empty()) {
+//       auto mode = cmd.stderr_append ? std::ios::app : std::ios::trunc;
+//       errFile.open(cmd.stderr_redirect, mode);
+//       if (errFile.is_open()) {
+//         // changes cerr's buffer to file's buffer and returns old buffer
+//         origCerrBuf = std::cerr.rdbuf(errFile.rdbuf());
+//       }
+//     }
+//   }
+
+//   bool result = true;
+
+//   if (cmd.name == "echo") {
+//     runEcho(cmd);
+//   } else if (cmd.name == "pwd") {
+//     runPwd();
+//   } else if (cmd.name == "cd") {
+//     runCd(cmd);
+//   } else if (cmd.name == "type") {
+//     runType(cmd);
+//   } else if (cmd.name == "complete") {
+//     runComplete(cmd);
+//   } else if (cmd.name == "jobs") {
+//     runJobs(cmd);
+//   } else { 
+//     runExternal(cmd);
+//   }
+
+//   if (origCoutBuf) {
+//     std::cout.rdbuf(origCoutBuf);   // restore terminal output
+//   }
+//   if (origCerrBuf) {
+//     std::cerr.rdbuf(origCerrBuf);
+//   }
+
+//   return result;
+// }

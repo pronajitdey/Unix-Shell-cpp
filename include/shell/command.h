@@ -14,3 +14,10 @@ struct Command {
 
   bool background = false;  // true if line ends with '&
 };
+
+// One or more commands connected by '|'. A single command (no pipes)
+// is just a Pipeline with one entry — this is the top-level unit the
+// parser and executor now operate on.
+struct Pipeline {
+  std::vector<Command> commands;
+};

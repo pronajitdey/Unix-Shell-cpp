@@ -27,9 +27,10 @@ int main() {
     std::string input(line);
     free(line);
 
-    Command cmd = parseCommand(input);
+    // Command cmd = parseCommand(input);
+    Pipeline pipeline = parsePipeline(input);
 
-    if (!executeCommand(cmd)) {
+    if (!executePipeline(pipeline)) {
       break;  // "exit" entered
     }
   }
