@@ -409,6 +409,8 @@ static pid_t spawnPipelineStage(const Command& cmd, int pipeIn, int pipeOut) {
   }
 
   if (pid == 0) {
+    signal(SIGINT, SIG_DFL);  // child gets normal Ctrl+C behavior back
+
     setupChildIO(cmd, pipeIn, pipeOut);
 
     if (isBuiltinName(cmd.name)) {

@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <csignal>
 
 #include "shell/command.h"
 #include "shell/parser.h"
@@ -13,6 +14,8 @@ int main() {
   // Flush after every std::cout / std:cerr
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
+
+  signal(SIGINT, SIG_IGN);  // shell itself never dies from Ctrl+C
 
   initCompletion();
 
