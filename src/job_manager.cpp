@@ -8,12 +8,20 @@ static std::vector<Job>& jobTable() {
   return jobs;
 }
 
-static int nextJobNumber = 1;
-
 int registerBackgroundJob(pid_t pid, const std::string& commandLine) {
-  int number = nextJobNumber++;
-  jobTable().push_back(Job{number, pid, commandLine, true});
-  return number;
+  auto& jobs = jobTable();
+
+  int nextNumber = 1;
+  if (!jobs.empty()) {
+    int highest = 0;
+    for (const auto& job : jobs) {
+      highest = std::max(highest, job.number);
+    }
+    nextNumber = highest + 1;
+  }
+
+  jobs.push_back(Job{nextNumber, pid, commandLine, true});
+  return nextNumber;
 }
 
 const std::vector<Job>& allJobs() {
