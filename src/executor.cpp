@@ -189,14 +189,17 @@ static void runJobs(const Command& cmd) {
   (void)cmd;
 
   const auto& jobs = allJobs();
+  size_t n = jobs.size();
 
-  for (size_t i = 0; i < jobs.size(); i++) {
+  for (size_t i = 0; i < n; i++) {
     const Job& job = jobs[i];
 
-    // '+' marks the most recent job. With only one job ever tested
-    // in this stage, this is always the last entry — the '-' marker
-    // for the second-most-recent job is a later-stage concern.
-    char marker = (i == jobs.size() - 1) ? '+' : '-';
+    char marker = ' ';
+    if (i == n - 1) {
+      marker = '+'; // most recent
+    } else if (n >= 2 && i == n - 2) {
+      marker = '-'; // second most recent
+    }
 
     std::string status = job.running ? "Running" : "Done";
 
