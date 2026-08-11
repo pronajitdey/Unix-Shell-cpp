@@ -272,19 +272,7 @@ static void runHistory(const Command& cmd) {
   if (!cmd.args.empty() && cmd.args[0] == "-a") {
     if (cmd.args.size() < 2) return;  // no path given
 
-    const std::string& path = cmd.args[1];
-    std::ofstream file(path, std::ios::app);  // append mode
-
-    if (!file.is_open()) return;
-
-    const auto& history = getHistory();
-    size_t start = getLastAppendedIndex();
-
-    for (size_t i = start; i < history.size(); i++) {
-      file << history[i] << "\n";
-    }
-
-    setLastAppendedIndex(history.size());
+    appendHistoryToFile(cmd.args[1]);
 
     return;
   }

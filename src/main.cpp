@@ -52,7 +52,7 @@ int main() {
   // Runs regardless of which break above was hit — both exit paths
   // converge here before the program actually terminates.
   if (histfile != nullptr) {
-    saveHistoryToFile(histfile);
+    appendHistoryToFile(histfile);
   }
 
   return 0;

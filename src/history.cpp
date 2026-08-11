@@ -43,6 +43,8 @@ bool loadHistoryFromFile(const std::string& path) {
     add_history(line.c_str());  // keep readline's arrow-key recall in sync too
   }
 
+  setLastAppendedIndex(getHistory().size());
+
   return true;
 }
 
@@ -58,5 +60,23 @@ bool saveHistoryToFile(const std::string& path) {
   }
 
   setLastAppendedIndex(getHistory().size());
+  return true;
+}
+
+bool appendHistoryToFile(const std::string& path) {
+  std::ofstream file(path, std::ios::app);
+
+  if (!file.is_open()) {
+    return false;
+  }
+
+  const auto& history = getHistory();
+  size_t start = getLastAppendedIndex();
+
+  for (size_t i = start; i < history.size(); ++i) {
+    file << history[i] << "\n";
+  }
+
+  setLastAppendedIndex(history.size());
   return true;
 }

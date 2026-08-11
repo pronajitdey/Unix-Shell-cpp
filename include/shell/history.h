@@ -28,3 +28,8 @@ bool loadHistoryFromFile(const std::string& path);
 // content. Used by both `history -w` and automatic HISTFILE saving on
 // exit.
 bool saveHistoryToFile(const std::string& path);
+
+// Appends only entries added since the last append/write, without
+// truncating existing file content. Used by both `history -a` and
+// automatic HISTFILE saving on exit.
+bool appendHistoryToFile(const std::string& path);
