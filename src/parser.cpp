@@ -1,5 +1,34 @@
 #include "shell/parser.h"
+#include "shell/variables.h"
 // #include <sstream>
+
+// Reads a variable name starting at input[i] (which must be '$'),
+// looks it up, and returns its value (empty string if undefined).
+// Advances `i` past the consumed "$NAME" text.
+static std::string expandVariableAt(const std::string& input, size_t& i) {
+  size_t start = i;
+  i++;  // skip '$'
+
+  size_t nameStart = i;
+  while (i < input.size() &&
+         (std::isalnum(static_cast<unsigned char>(input[i])) || input[i] == '_')) {
+    i++;
+  }
+
+  if (i == nameStart) {
+    // '$' not followed by a valid identifier character — treat the
+    // '$' itself as a literal character (no expansion possible).
+    i = start + 1;
+    return "$";
+  }
+
+  std::string name = input.substr(nameStart, i - nameStart);
+  std::string value;
+  if (getVariable(name, value)) {
+    return value;
+  }
+  return ""; // undefined variable expands to empty string, matching bash
+}
 
 static std::vector<std::string> tokenize(const std::string& input) {
   std::vector<std::string> tokens;
@@ -43,6 +72,8 @@ static std::vector<std::string> tokenize(const std::string& input) {
 
           current += input[i + 1];
           i += 2;
+        } else if (input[i] == '$') {
+          current += expandVariableAt(input, i);
         } else { 
           current += input[i];
           i++;
@@ -61,6 +92,11 @@ static std::vector<std::string> tokenize(const std::string& input) {
         i++;
       }
       continue;
+    }
+
+    if (c == '$') {
+      inToken = true;
+      current += expandVariableAt(input, i);
     }
 
     inToken = true;
