@@ -249,10 +249,24 @@ static void runJobs(const Command& cmd) {
 }
 
 static void runHistory(const Command& cmd) {
-  (void)cmd;
-
   const auto& history = getHistory();
-  for (size_t i = 0; i < history.size(); i++) {
+
+  size_t startIndex = 0;
+
+  if (!cmd.args.empty()) {
+    try {
+      int n = std::stoi(cmd.args[0]);
+      if (n < 0) n = 0;
+
+      size_t count = static_cast<size_t>(n);
+      startIndex = (count >= history.size()) ? 0 : history.size() - count;
+    } catch (const std::exception&) {
+      // Non-numeric argument - fall back to showing everything
+      startIndex = 0;
+    }
+  }
+
+  for (size_t i = startIndex; i < history.size(); i++) {
     std::cout << std::setw(5) << (i + 1) << " " << history[i] << std::endl;
   }
 }
