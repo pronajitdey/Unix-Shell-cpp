@@ -11,3 +11,10 @@ void addHistoryEntry(const std::string& line);
 // Returns all recorded entries in execution order (1-indexed display
 // numbering is applied by the caller, e.g. runHistory).
 const std::vector<std::string>& getHistory();
+
+// Tracks how many entries have already been appended to a history file
+// via `history -a`, so subsequent calls only write what's new since
+// the last append. Shared across the whole session (not per-file) —
+// matches bash's behavior of a single "last append point" cursor.
+size_t getLastAppendedIndex();
+void setLastAppendedIndex(size_t index);

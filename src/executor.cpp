@@ -285,6 +285,32 @@ static void runHistory(const Command& cmd) {
       file << entry << "\n";
     }
 
+    // A full write covers everything up to this point, so the
+    // append cursor should move forward too — otherwise a later
+    // `-a` would re-append entries already captured by this `-w`
+    setLastAppendedIndex(getHistory().size());
+
+    return;
+  }
+
+  // append history to a file since last write or append
+  if (!cmd.args.empty() && cmd.args[0] == "-a") {
+    if (cmd.args.size() < 2) return;  // no path given
+
+    const std::string& path = cmd.args[1];
+    std::ofstream file(path, std::ios::app);  // append mode
+
+    if (!file.is_open()) return;
+
+    const auto& history = getHistory();
+    size_t start = getLastAppendedIndex();
+
+    for (size_t i = start; i < history.size(); i++) {
+      file << history[i] << "\n";
+    }
+
+    setLastAppendedIndex(history.size());
+
     return;
   }
 
