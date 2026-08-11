@@ -9,6 +9,34 @@ static std::string expandVariableAt(const std::string& input, size_t& i) {
   size_t start = i;
   i++;  // skip '$'
 
+  // ${VAR} form: braces explicitly delimit the name
+  if (i < input.size() && input[i] == '{') {
+    size_t braceStart = i;
+    i++;  // skip '{'
+    
+    size_t nameStart = i;
+    while (i < input.size() && input[i] != '}') {
+      i++;
+    }
+    
+    if (i >= input.size()) {
+      // '$' not followed by a valid identifier character — treat the
+      // '$' itself as a literal character (no expansion possible).
+      i = braceStart + 1;
+      return "${";
+    }
+
+    std::string name = input.substr(nameStart, i - nameStart);
+    i++; // skip '}'
+
+    std::string value;
+    if (getVariable(name, value)) {
+      return value;
+    }
+    return "";
+  }
+
+  // $VAR form (no braces): read while alnum/underscore.
   size_t nameStart = i;
   while (i < input.size() &&
          (std::isalnum(static_cast<unsigned char>(input[i])) || input[i] == '_')) {
@@ -16,8 +44,6 @@ static std::string expandVariableAt(const std::string& input, size_t& i) {
   }
 
   if (i == nameStart) {
-    // '$' not followed by a valid identifier character — treat the
-    // '$' itself as a literal character (no expansion possible).
     i = start + 1;
     return "$";
   }
@@ -25,7 +51,7 @@ static std::string expandVariableAt(const std::string& input, size_t& i) {
   std::string name = input.substr(nameStart, i - nameStart);
   std::string value;
   if (getVariable(name, value)) {
-    return value;
+      return value;
   }
   return ""; // undefined variable expands to empty string, matching bash
 }
