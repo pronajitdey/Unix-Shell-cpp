@@ -3,6 +3,7 @@
 #include "shell/completion_registry.h"
 #include "shell/job_manager.h"
 #include "shell/history.h"
+#include "shell/variables.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -303,8 +304,26 @@ static void runHistory(const Command& cmd) {
 static void runDeclare(const Command& cmd) {
   if (cmd.args.size() >= 2 && cmd.args[0] == "-p") {
     const std::string& target = cmd.args[1];
-    std::cout << "declare: " << target << ": not found" << std::endl;
+    std::string value;
+
+    if (getVariable(target, value)) {
+      std::cout << "declare -- " << target << "=\"" << value << "\"" << std::endl;
+    } else {
+      std::cout << "declare: " << target << ": not found" << std::endl;
+    }
     return;
+  }
+
+  // declare NAME=VALUE
+  if (!cmd.args.empty()) {
+    const std::string& assignment = cmd.args[0];
+    size_t eq = assignment.find('=');
+
+    if (eq != std::string::npos) {
+      std::string name = assignment.substr(0, eq);
+      std::string value = assignment.substr(eq + 1);
+      setVariable(name, value);
+    }
   }
 }
 
