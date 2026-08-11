@@ -60,25 +60,39 @@ static std::vector<std::string> tokenize(const std::string& input) {
   std::vector<std::string> tokens;
   std::string current;
   bool inToken = false;
+  bool quoted = false; // true if this token included at least one '' or "" pair
 
   size_t i = 0;
   size_t n = input.size();
+
+  auto flushToken = [&]() {
+    if (inToken) {
+      // Push if there's real content, OR if quotes were used at all
+      // (even empty quotes force the word to exist — that's how
+      // `echo ''` still produces one empty argument). A token that's
+      // empty purely because an unquoted $VAR expanded to nothing
+      // is dropped entirely.
+      if (!current.empty() || quoted) {
+        tokens.push_back(current);
+      }
+      current.clear();
+      inToken = false;
+      quoted = false;
+    }
+  };
 
   while (i < n) {
     char c = input[i];
 
     if (c == ' ' || c == '\t') {
-      if (inToken) {
-        tokens.push_back(current);
-        current.clear();
-        inToken = false;
-      }
+      flushToken();
       i++;
       continue;
     }
 
     if (c == '\'') {
       inToken = true;
+      quoted = true;
       i++;
       while (i < n && input[i] != '\'') {
         current += input[i];
@@ -90,6 +104,7 @@ static std::vector<std::string> tokenize(const std::string& input) {
 
     if (c == '"') {
       inToken = true;
+      quoted = true;
       i++;
       while (i < n && input[i] != '"') {
         if (input[i] == '\\' && i + 1 < n
@@ -131,9 +146,7 @@ static std::vector<std::string> tokenize(const std::string& input) {
     i++;
   }
 
-  if (inToken) {
-    tokens.push_back(current);
-  }
+  flushToken(); // handle whatever's left at the end of input
 
   return tokens;
 }
