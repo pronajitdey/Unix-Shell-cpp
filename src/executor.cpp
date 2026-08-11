@@ -343,7 +343,36 @@ bool executePipeline(const Pipeline& pipeline) {
     if (cmd.name.empty()) return true;
 
     if (isBuiltinName(cmd.name) || cmd.name == "exit") {
-      return runBuiltinDispatch(cmd);
+      // Redirect std::cout/std::cerr for the duration of this
+      // builtin call, same mechanism as before the pipeline
+      // refactor — builtins write via iostreams, not raw fds,
+      // so dup2 alone (used for external commands) doesn't
+      // affect them.
+      std::ofstream outFile, errFile;
+      std::streambuf* origCoutBuf = nullptr;
+      std::streambuf* origCerrBuf = nullptr;
+
+      if (!cmd.stdout_redirect.empty()) {
+        auto mode = cmd.stdout_append ? std::ios::app : std::ios::trunc;
+        outFile.open(cmd.stdout_redirect, mode);
+        if (outFile.is_open()) {
+          origCoutBuf = std::cout.rdbuf(outFile.rdbuf());
+        }
+      }
+      if (!cmd.stderr_redirect.empty()) {
+        auto mode = cmd.stderr_append ? std::ios::app : std::ios::trunc;
+        errFile.open(cmd.stderr_redirect, mode);
+        if (errFile.is_open()) {
+          origCerrBuf = std::cerr.rdbuf(errFile.rdbuf());
+        }
+      }
+
+      bool result = runBuiltinDispatch(cmd);
+
+      if (origCoutBuf) std::cout.rdbuf(origCoutBuf);
+      if (origCerrBuf) std::cerr.rdbuf(origCerrBuf);
+
+      return result;
     }
 
     const char* env_path = std::getenv("PATH");
