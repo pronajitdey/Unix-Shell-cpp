@@ -16,6 +16,8 @@ int main() {
   initCompletion();
 
   while (true) {
+    reapAndAnnounceFinishedJobs(); // check before every prompt
+
     char* line = readline("$ ");
 
     if (line == nullptr) {

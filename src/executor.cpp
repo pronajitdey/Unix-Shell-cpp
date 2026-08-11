@@ -22,6 +22,35 @@ static std::string reconstructCommandLine(const Command& cmd) {
     return line;
 }
 
+// Prints Done entries for any jobs that have finished, then removes them.
+// Called both from the `jobs` builtin and automatically before each prompt.
+// Only prints jobs that ARE done — running jobs are silently skipped here
+// (they're only shown when `jobs` is explicitly called).
+void reapAndAnnounceFinishedJobs() {
+  reapFinishedJobs(); // mark exited jobs
+
+  const auto& jobs = allJobs();
+  size_t n = jobs.size();
+
+  for (size_t i = 0; i < n; ++i) {
+    const Job& job = jobs[i];
+    if (job.running) continue; // only announce Done jobs here
+
+    char marker = ' ';
+    if (i == n - 1) {
+      marker = '+';
+    } else if (n >= 2 && i == n - 2) {
+      marker = '-';
+    }
+
+    std::cout << "[" << job.number << "]" << marker << "  "
+              << std::left << std::setw(24) << "Done"
+              << job.commandLine << std::endl;
+  }
+
+  removeFinishedJobs();
+}
+
 // handle echo command
 static void runEcho(const Command& cmd) {
   for (size_t i = 0; i < cmd.args.size(); i++) {
@@ -185,7 +214,7 @@ static void runComplete(const Command& cmd) {
 static void runJobs(const Command& cmd) {
   (void)cmd;
 
-  reapFinishedJobs(); // mark any exited jobs as Done before displaying
+   reapAndAnnounceFinishedJobs(); // reap + announce any newly-Done jobs first
 
   const auto& jobs = allJobs();
   size_t n = jobs.size();
@@ -210,8 +239,6 @@ static void runJobs(const Command& cmd) {
               << std::left << std::setw(24) << status
               << displayLine << std::endl;
   }
-
-  removeFinishedJobs(); // drop Done entries after this listing is printed
 }
 
 bool executeCommand(const Command& cmd) {
