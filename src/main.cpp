@@ -16,6 +16,11 @@ int main() {
 
   initCompletion();
 
+  const char* histfile = std::getenv("HISTFILE");
+  if (histfile != nullptr) {
+    loadHistoryFromFile(histfile);
+  }
+
   while (true) {
     reapAndAnnounceFinishedJobs(); // check before every prompt
 

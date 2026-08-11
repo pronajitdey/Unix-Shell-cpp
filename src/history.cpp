@@ -1,5 +1,8 @@
 #include "shell/history.h"
 
+#include <readline/history.h>
+#include <fstream>
+
 static std::vector<std::string>& historyList() {
   static std::vector<std::string> entries;
   return entries;
@@ -25,4 +28,20 @@ size_t getLastAppendedIndex() {
 
 void setLastAppendedIndex(size_t index) {
   lastAppendedIndexRef() = index;
+}
+
+bool loadHistoryFromFile(const std::string& path) {
+  std::ifstream file(path);
+
+  if (!file.is_open()) {
+    return false; // do nothing if the file can't be opened
+  }
+
+  std::string line;
+  while (std::getline(file, line)) {
+    addHistoryEntry(line);  // empty lines are already skipped inside addHistoryEntry
+    add_history(line.c_str());  // keep readline's arrow-key recall in sync too
+  }
+  
+  return true;
 }

@@ -18,3 +18,8 @@ const std::vector<std::string>& getHistory();
 // matches bash's behavior of a single "last append point" cursor.
 size_t getLastAppendedIndex();
 void setLastAppendedIndex(size_t index);
+
+// Reads a history file line-by-line, adding each non-empty line to
+// both the in-memory history list and readline's own history. Used by
+// both `history -r` and automatic HISTFILE loading on startup.
+bool loadHistoryFromFile(const std::string& path);

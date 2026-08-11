@@ -254,18 +254,7 @@ static void runHistory(const Command& cmd) {
   if (!cmd.args.empty() && cmd.args[0] == "-r") {
     if (cmd.args.size() < 2) return;  // no path given
 
-    const std::string& path = cmd.args[1];
-    std::ifstream file(path);
-
-    if (!file.is_open()) {
-      return; // silently do nothing if the file can't be opened
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-      addHistoryEntry(line);  // empty lines are already skipped inside addHistoryEntry
-      add_history(line.c_str());  // keep readline's arrow-key recall in sync too
-    }
+    loadHistoryFromFile(cmd.args[1]);
 
     return;
   }
