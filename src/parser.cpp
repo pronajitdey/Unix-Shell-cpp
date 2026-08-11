@@ -97,6 +97,7 @@ static std::vector<std::string> tokenize(const std::string& input) {
     if (c == '$') {
       inToken = true;
       current += expandVariableAt(input, i);
+      continue;
     }
 
     inToken = true;
