@@ -301,6 +301,16 @@ static pid_t spawnPipelineStage(const Command& cmd, int pipeIn, int pipeOut) {
   if (pid == 0) {
     setupChildIO(cmd, pipeIn, pipeOut);
 
+    if (isBuiltinName(cmd.name)) {
+      // Run the builtin's logic directly in this forked child.
+      // Its stdout/stdin are already wired to the pipe via
+      // setupChildIO's dup2 calls above, so std::cout/std::cin
+      // naturally flow through the pipeline correctly.
+      runBuiltinDispatch(cmd);
+      std::cout.flush();
+      _exit(0);
+    }
+
     std::vector<char*> argv;
     argv.push_back(const_cast<char*>(cmd.name.c_str()));
     for (auto& a : cmd.args) argv.push_back(const_cast<char*>(a.c_str()));
