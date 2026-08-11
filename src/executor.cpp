@@ -301,7 +301,11 @@ static void runHistory(const Command& cmd) {
 }
 
 static void runDeclare(const Command& cmd) {
-  (void)cmd;
+  if (cmd.args.size() >= 2 && cmd.args[0] == "-p") {
+    const std::string& target = cmd.args[1];
+    std::cout << "declare: " << target << ": not found" << std::endl;
+    return;
+  }
 }
 
 // Runs ONE builtin synchronously in the current process (used only for
