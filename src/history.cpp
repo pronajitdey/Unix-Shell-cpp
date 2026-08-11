@@ -42,6 +42,21 @@ bool loadHistoryFromFile(const std::string& path) {
     addHistoryEntry(line);  // empty lines are already skipped inside addHistoryEntry
     add_history(line.c_str());  // keep readline's arrow-key recall in sync too
   }
-  
+
+  return true;
+}
+
+bool saveHistoryToFile(const std::string& path) {
+  std::ofstream file(path);
+
+  if (!file.is_open()) {
+    return false;
+  }
+
+  for (const auto& entry : getHistory()) {
+    file << entry << "\n";
+  }
+
+  setLastAppendedIndex(getHistory().size());
   return true;
 }

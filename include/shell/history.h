@@ -23,3 +23,8 @@ void setLastAppendedIndex(size_t index);
 // both the in-memory history list and readline's own history. Used by
 // both `history -r` and automatic HISTFILE loading on startup.
 bool loadHistoryFromFile(const std::string& path);
+
+// Writes the full in-memory history to `path`, truncating any existing
+// content. Used by both `history -w` and automatic HISTFILE saving on
+// exit.
+bool saveHistoryToFile(const std::string& path);

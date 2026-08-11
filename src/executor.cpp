@@ -263,21 +263,7 @@ static void runHistory(const Command& cmd) {
   if (!cmd.args.empty() && cmd.args[0] == "-w") {
     if (cmd.args.size() < 2) return;  // no path given
 
-    const std::string& path = cmd.args[1];
-    std::ofstream file(path); // creates if missing, truncates if exists
-
-    if (!file.is_open()) {
-      return;
-    }
-
-    for (auto& entry : getHistory()) {
-      file << entry << "\n";
-    }
-
-    // A full write covers everything up to this point, so the
-    // append cursor should move forward too — otherwise a later
-    // `-a` would re-append entries already captured by this `-w`
-    setLastAppendedIndex(getHistory().size());
+    saveHistoryToFile(cmd.args[1]);
 
     return;
   }
