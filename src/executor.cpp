@@ -251,6 +251,26 @@ static void runJobs(const Command& cmd) {
   removeFinishedJobs();
 }
 
+// A valid identifier: starts with a letter or underscore, followed by
+// any number of letters, digits, or underscores.
+static bool isValidIdentifier(const std::string& name) {
+  if (name.empty()) return false;
+
+  char first = name[0];
+  if (!std::isalpha(static_cast<unsigned char>(first)) && first != '_') {
+    return false;
+  }
+
+  for (size_t i = 1; i < name.size(); ++i) {
+    char c = name[i];
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static void runHistory(const Command& cmd) {
   // read history from a file
   if (!cmd.args.empty() && cmd.args[0] == "-r") {
@@ -322,6 +342,12 @@ static void runDeclare(const Command& cmd) {
     if (eq != std::string::npos) {
       std::string name = assignment.substr(0, eq);
       std::string value = assignment.substr(eq + 1);
+
+      if (!isValidIdentifier(name)) {
+        std::cout << "declare: `" << assignment << "': not a valid identifier" << std::endl;
+        return;
+      }
+      
       setVariable(name, value);
     }
   }
