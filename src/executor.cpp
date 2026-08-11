@@ -270,6 +270,24 @@ static void runHistory(const Command& cmd) {
     return;
   }
 
+  // write history to a file
+  if (!cmd.args.empty() && cmd.args[0] == "-w") {
+    if (cmd.args.size() < 2) return;  // no path given
+
+    const std::string& path = cmd.args[1];
+    std::ofstream file(path); // creates if missing, truncates if exists
+
+    if (!file.is_open()) {
+      return;
+    }
+
+    for (auto& entry : getHistory()) {
+      file << entry << "\n";
+    }
+
+    return;
+  }
+
   const auto& history = getHistory();
 
   size_t startIndex = 0;
