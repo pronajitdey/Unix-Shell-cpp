@@ -17,7 +17,7 @@
 static bool isBuiltinName(const std::string& name) {
   return name == "echo" || name == "pwd" || name == "cd" ||
          name == "type" || name == "complete" || name == "jobs" ||
-         name == "history";
+         name == "history" || name == "declare";
 }
 
 // Shared helper: given the current (already-reaped) job list, print one
@@ -91,7 +91,8 @@ static void runType(const Command& cmd) {
       || target == "cd"
       || target == "complete"
       || target == "jobs"
-      || target == "history") {    // check builtin commands
+      || target == "history"
+      || target == "declare") {    // check builtin commands
     std::cout << target << " is a shell builtin" << std::endl;
     return;
   }
@@ -299,6 +300,10 @@ static void runHistory(const Command& cmd) {
   }
 }
 
+static void runDeclare(const Command& cmd) {
+  (void)cmd;
+}
+
 // Runs ONE builtin synchronously in the current process (used only for
 // the single-command, non-piped case — see note in executePipeline).
 static bool runBuiltinDispatch(const Command& cmd) {
@@ -309,6 +314,7 @@ static bool runBuiltinDispatch(const Command& cmd) {
   if (cmd.name == "complete") { runComplete(cmd); return true; }
   if (cmd.name == "jobs") { runJobs(cmd); return true; }
   if (cmd.name == "history") { runHistory(cmd); return true; }
+  if (cmd.name == "declare") { runDeclare(cmd); return true; }
   if (cmd.name == "type") { runType(cmd); return true; }
   return true;
 }
