@@ -12,6 +12,27 @@
 #include <unordered_map>
 #include <iomanip>
 
+// Shared helper: given the current (already-reaped) job list, print one
+// line per job in `jobsToShow`, using markers computed relative to the
+// FULL current table (`allJobsSnapshot`), not just the subset being shown.
+static char markerFor(size_t indexInFullList, size_t fullListSize) {
+  if (indexInFullList == fullListSize - 1) return '+';
+  if (fullListSize >= 2 && indexInFullList == fullListSize - 2) return '-';
+  return ' ';
+}
+
+static void printJobLine(const Job& job, char marker) {
+  std::string status = job.running ? "Running" : "Done";
+  std::string displayLine = job.commandLine;
+  if (job.running) {
+    displayLine += " &";
+  }
+
+  std::cout << "[" << job.number << "]" << marker << "  "
+            << std::left << std::setw(24) << status
+            << displayLine << std::endl;
+}
+
 // Helper to reconstruct a readable command line for job registration
 // (not used for execution — just for future `jobs` listing/display).
 static std::string reconstructCommandLine(const Command& cmd) {
@@ -22,10 +43,10 @@ static std::string reconstructCommandLine(const Command& cmd) {
     return line;
 }
 
-// Prints Done entries for any jobs that have finished, then removes them.
-// Called both from the `jobs` builtin and automatically before each prompt.
-// Only prints jobs that ARE done — running jobs are silently skipped here
-// (they're only shown when `jobs` is explicitly called).
+// Used automatically before each prompt: reap, announce ONLY the newly
+// finished jobs (markers computed over the full set at reap time, since
+// that's still the current table at the moment they're shown), then
+// remove them.
 void reapAndAnnounceFinishedJobs() {
   reapFinishedJobs(); // mark exited jobs
 
@@ -33,19 +54,9 @@ void reapAndAnnounceFinishedJobs() {
   size_t n = jobs.size();
 
   for (size_t i = 0; i < n; ++i) {
-    const Job& job = jobs[i];
-    if (job.running) continue; // only announce Done jobs here
-
-    char marker = ' ';
-    if (i == n - 1) {
-      marker = '+';
-    } else if (n >= 2 && i == n - 2) {
-      marker = '-';
+    if (!jobs[i].running) {
+      printJobLine(jobs[i], markerFor(i, n));
     }
-
-    std::cout << "[" << job.number << "]" << marker << "  "
-              << std::left << std::setw(24) << "Done"
-              << job.commandLine << std::endl;
   }
 
   removeFinishedJobs();
@@ -211,34 +222,22 @@ static void runComplete(const Command& cmd) {
   }
 }
 
+// Used by the `jobs` builtin: reap (mark only), display EVERYTHING
+// together in job-number order with markers over the full set, then
+// remove Done entries.
 static void runJobs(const Command& cmd) {
   (void)cmd;
 
-   reapAndAnnounceFinishedJobs(); // reap + announce any newly-Done jobs first
+  reapFinishedJobs(); // mark only — no display, no removal yet
 
   const auto& jobs = allJobs();
   size_t n = jobs.size();
 
   for (size_t i = 0; i < n; i++) {
-    const Job& job = jobs[i];
-
-    char marker = ' ';
-    if (i == n - 1) {
-      marker = '+'; // most recent
-    } else if (n >= 2 && i == n - 2) {
-      marker = '-'; // second most recent
-    }
-
-    std::string status = job.running ? "Running" : "Done";
-    std::string displayLine = job.commandLine;
-    if (job.running) {
-      displayLine += " &"; // only Running jobs show trailing '&'
-    }
-
-    std::cout << "[" << job.number << "]" << marker << "  "
-              << std::left << std::setw(24) << status
-              << displayLine << std::endl;
+    printJobLine(jobs[i], markerFor(i, n));
   }
+
+  removeFinishedJobs();
 }
 
 bool executeCommand(const Command& cmd) {
