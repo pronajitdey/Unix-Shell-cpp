@@ -2,6 +2,7 @@
 #include "shell/path_utils.h"
 #include "shell/completion_registry.h"
 #include "shell/job_manager.h"
+#include "shell/history.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -249,6 +250,11 @@ static void runJobs(const Command& cmd) {
 
 static void runHistory(const Command& cmd) {
   (void)cmd;
+
+  const auto& history = getHistory();
+  for (size_t i = 0; i < history.size(); i++) {
+    std::cout << std::setw(5) << (i + 1) << " " << history[i] << std::endl;
+  }
 }
 
 // Runs ONE builtin synchronously in the current process (used only for

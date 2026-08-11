@@ -7,6 +7,7 @@
 #include "shell/parser.h"
 #include "shell/executor.h"
 #include "shell/completion.h"
+#include "shell/history.h"
 
 int main() {
   // Flush after every std::cout / std:cerr
@@ -26,6 +27,10 @@ int main() {
 
     std::string input(line);
     free(line);
+
+    // record BEFORE execution, so "history"
+    // itself and failed commands are included
+    addHistoryEntry(input);
 
     // Command cmd = parseCommand(input);
     Pipeline pipeline = parsePipeline(input);
