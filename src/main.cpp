@@ -28,6 +28,10 @@ int main() {
     std::string input(line);
     free(line);
 
+    if (!input.empty()) {
+      add_history(input.c_str()); // feeds readline's own up/down arrow recall
+    }
+
     // record BEFORE execution, so "history"
     // itself and failed commands are included
     addHistoryEntry(input);
