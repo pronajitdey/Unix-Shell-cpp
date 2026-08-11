@@ -19,9 +19,6 @@ static std::string reconstructCommandLine(const Command& cmd) {
     for (const auto& arg : cmd.args) {
         line += " " + arg;
     }
-    if (cmd.background) {
-      line += " &";
-    }
     return line;
 }
 
@@ -188,6 +185,8 @@ static void runComplete(const Command& cmd) {
 static void runJobs(const Command& cmd) {
   (void)cmd;
 
+  reapFinishedJobs(); // mark any exited jobs as Done before displaying
+
   const auto& jobs = allJobs();
   size_t n = jobs.size();
 
@@ -202,11 +201,17 @@ static void runJobs(const Command& cmd) {
     }
 
     std::string status = job.running ? "Running" : "Done";
+    std::string displayLine = job.commandLine;
+    if (job.running) {
+      displayLine += " &"; // only Running jobs show trailing '&'
+    }
 
     std::cout << "[" << job.number << "]" << marker << "  "
               << std::left << std::setw(24) << status
-              << job.commandLine << std::endl;
+              << displayLine << std::endl;
   }
+
+  removeFinishedJobs(); // drop Done entries after this listing is printed
 }
 
 bool executeCommand(const Command& cmd) {
